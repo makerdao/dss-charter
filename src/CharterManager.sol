@@ -50,7 +50,7 @@ contract UrnProxy {
     }
 }
 
-contract CropManager {
+contract CharterManager {
     mapping (address => uint256) public wards;
     mapping (address => address) public proxy;  // UrnProxy per user
     address public implementation;
@@ -66,7 +66,7 @@ contract CropManager {
 
     function rely(address usr) public auth { wards[usr] = 1; emit Rely(msg.sender); }
     function deny(address usr) public auth { wards[usr] = 0; emit Deny(msg.sender); }
-    modifier auth { require(wards[msg.sender] == 1, "CropManager/non-authed"); _; }
+    modifier auth { require(wards[msg.sender] == 1, "CharterManager/non-authed"); _; }
 
     function setImplementation(address implementation_) external auth {
         implementation = implementation_;
@@ -91,7 +91,7 @@ contract CropManager {
     }
 }
 
-contract CropManagerImp {
+contract CharterManagerImp {
     bytes32 slot0;
     mapping (address => address) proxy;  // UrnProxy per user
 
@@ -115,18 +115,18 @@ contract CropManagerImp {
 
     function exit(address crop, address usr, uint256 val) external {
         address urp = proxy[msg.sender];
-        require(urp != address(0), "CropManager/non-existing-urp");
+        require(urp != address(0), "CharterManager/non-existing-urp");
         CropLike(crop).exit(urp, usr, val);
     }
 
     function flee(address crop) external {
         address urp = proxy[msg.sender];
-        require(urp != address(0), "CropManager/non-existing-urp");
+        require(urp != address(0), "CharterManager/non-existing-urp");
         CropLike(crop).flee(urp, msg.sender);
     }
 
     function frob(address crop, address u, address v, address w, int256 dink, int256 dart) external {
-        require(u == msg.sender && v == msg.sender && w == msg.sender, "CropManager/not-allowed");
+        require(u == msg.sender && v == msg.sender && w == msg.sender, "CharterManager/not-allowed");
 
         // Note: This simplification only works because of the u == v == msg.sender restriction above
         address urp = getOrCreateProxy(u);
@@ -134,7 +134,7 @@ contract CropManagerImp {
     }
 
     function flux(address crop, address src, address dst, uint256 wad) external {
-        require(src == msg.sender, "CropManager/not-allowed");
+        require(src == msg.sender, "CharterManager/not-allowed");
 
         address surp = getOrCreateProxy(src);
         address durp = getOrCreateProxy(dst);
@@ -144,12 +144,12 @@ contract CropManagerImp {
     }
 
     function quit(bytes32 ilk, address dst) external {
-        require(VatLike(vat).live() == 0, "CropManager/vat-still-live");
+        require(VatLike(vat).live() == 0, "CharterManager/vat-still-live");
 
         address urp = getOrCreateProxy(msg.sender);
         (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
-        require(int256(ink) >= 0, "CropManager/overflow");
-        require(int256(art) >= 0, "CropManager/overflow");
+        require(int256(ink) >= 0, "CharterManager/overflow");
+        require(int256(art) >= 0, "CharterManager/overflow");
         VatLike(vat).fork(
             ilk,
             urp,
