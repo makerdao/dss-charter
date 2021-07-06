@@ -185,6 +185,10 @@ contract CharterManagerImp {
         }
     }
 
+    function onLiquidation(address crop, address usr, uint256 wad) external {}
+
+    function onVatFlux(address crop, address from, address to, uint256 wad) external {}
+
     function quit(bytes32 ilk, address dst) external {
         require(VatLike(vat).live() == 0, "CharterManager/vat-still-live");
 
