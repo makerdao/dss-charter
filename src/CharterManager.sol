@@ -185,15 +185,6 @@ contract CharterManagerImp {
         }
     }
 
-    function flux(address gemJoin, address src, address dst, uint256 wad) external {
-        require(src == msg.sender, "CharterManager/not-allowed");
-
-        address surp = getOrCreateProxy(src);
-        address durp = getOrCreateProxy(dst);
-
-        VatLike(vat).flux(AuthGemJoinLike(gemJoin).ilk(), surp, durp, wad);
-    }
-
     function quit(bytes32 ilk, address dst) external {
         require(VatLike(vat).live() == 0, "CharterManager/vat-still-live");
 
