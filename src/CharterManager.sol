@@ -27,13 +27,11 @@ interface VatLike {
     function nope(address) external;
 }
 
-interface CropLike {
+interface AuthGemJoinLike {
     function gem() external view returns (address);
     function ilk() external view returns (bytes32);
     function join(address, address, uint256) external;
     function exit(address, address, uint256) external;
-    function tack(address, address, uint256) external;
-    function flee(address, address) external;
 }
 
 interface TokenLike {
@@ -107,40 +105,33 @@ contract CharterManagerImp {
         }
     }
 
-    function join(address crop, address usr, uint256 val) external {
-        TokenLike(CropLike(crop).gem()).transferFrom(msg.sender, address(this), val);
-        TokenLike(CropLike(crop).gem()).approve(crop, val);
-        CropLike(crop).join(getOrCreateProxy(usr), usr, val);
+    function join(address gemJoin, address usr, uint256 val) external {
+        TokenLike(AuthGemJoinLike(gemJoin).gem()).transferFrom(msg.sender, address(this), val);
+        TokenLike(AuthGemJoinLike(gemJoin).gem()).approve(gemJoin, val);
+        AuthGemJoinLike(gemJoin).join(getOrCreateProxy(usr), usr, val);
     }
 
-    function exit(address crop, address usr, uint256 val) external {
+    function exit(address gemJoin, address usr, uint256 val) external {
         address urp = proxy[msg.sender];
         require(urp != address(0), "CharterManager/non-existing-urp");
-        CropLike(crop).exit(urp, usr, val);
+        AuthGemJoinLike(gemJoin).exit(urp, usr, val);
     }
 
-    function flee(address crop) external {
-        address urp = proxy[msg.sender];
-        require(urp != address(0), "CharterManager/non-existing-urp");
-        CropLike(crop).flee(urp, msg.sender);
-    }
-
-    function frob(address crop, address u, address v, address w, int256 dink, int256 dart) external {
+    function frob(address gemJoin, address u, address v, address w, int256 dink, int256 dart) external {
         require(u == msg.sender && v == msg.sender && w == msg.sender, "CharterManager/not-allowed");
 
         // Note: This simplification only works because of the u == v == msg.sender restriction above
         address urp = getOrCreateProxy(u);
-        VatLike(vat).frob(CropLike(crop).ilk(), urp, urp, w, dink, dart);
+        VatLike(vat).frob(AuthGemJoinLike(gemJoin).ilk(), urp, urp, w, dink, dart);
     }
 
-    function flux(address crop, address src, address dst, uint256 wad) external {
+    function flux(address gemJoin, address src, address dst, uint256 wad) external {
         require(src == msg.sender, "CharterManager/not-allowed");
 
         address surp = getOrCreateProxy(src);
         address durp = getOrCreateProxy(dst);
 
-        VatLike(vat).flux(CropLike(crop).ilk(), surp, durp, wad);
-        CropLike(crop).tack(surp, durp, wad);
+        VatLike(vat).flux(AuthGemJoinLike(gemJoin).ilk(), surp, durp, wad);
     }
 
     function quit(bytes32 ilk, address dst) external {
