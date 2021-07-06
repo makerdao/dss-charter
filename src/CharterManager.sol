@@ -120,6 +120,9 @@ contract CharterManagerImp {
     // --- Math ---
     uint256 constant WAD = 10 ** 18;
 
+    function sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require((z = x - y) <= x, "ds-math-sub-underflow");
+    }
     function mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
@@ -165,16 +168,20 @@ contract CharterManagerImp {
         // Note: This simplification only works because of the u == v == msg.sender restriction above
         address urp = getOrCreateProxy(u);
         bytes32 ilk = AuthGemJoinLike(gemJoin).ilk();
-        VatLike(vat).frob(ilk, urp, urp, w, dink, dart);
 
-        if (dart > 0) {
+        if (dart > 0 && nib[ilk][u] > 0) {
             (,uint256 rate,,,) = VatLike(vat).ilks(ilk);
+            uint256 dtab = mul(rate, uint256(dart)); // rad
+            uint256 coin = wmul(dtab, nib[ilk][u]); // rad
+
+            VatLike(vat).frob(ilk, urp, urp, urp, dink, dart);
+            VatLike(vat).move(urp, w, sub(dtab, coin));
+            VatLike(vat).move(urp, vow, coin);
+
             (, uint256 art) = VatLike(vat).urns(ilk, urp);
             require(mul(art, rate) <= line[ilk][u], "CharterManager/user-line-exceeded");
-
-            uint dtab = mul(rate, uint256(dart)); // rad
-            uint256 coin = wmul(dtab, nib[ilk][u]); // rad
-            VatLike(vat).move(urp, vow, coin);
+        } else {
+            VatLike(vat).frob(ilk, urp, urp, w, dink, dart);
         }
     }
 
