@@ -23,8 +23,16 @@ interface VatLike {
     function fork(bytes32, address, address, int256, int256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
     function flux(bytes32, address, address, uint256) external;
+    function move(address, address, uint256) external;
     function hope(address) external;
     function nope(address) external;
+    function ilks(bytes32) external view returns (
+        uint256 Art,  // [wad]
+        uint256 rate, // [ray]
+        uint256 spot, // [ray]
+        uint256 line, // [rad]
+        uint256 dust  // [rad]
+    );
 }
 
 interface AuthGemJoinLike {
@@ -90,12 +98,46 @@ contract CharterManager {
 }
 
 contract CharterManagerImp {
+    // --- Data ---
     bytes32 slot0;
     mapping (address => address) proxy;  // UrnProxy per user
+    bytes32 slot2;
 
     address public immutable vat;
-    constructor(address vat_) public {
+    address public immutable vow;
+
+    mapping (address => uint256) public wards;
+    mapping (bytes32 => mapping(address => uint256)) public line; // line per ilk per user
+    mapping (bytes32 => mapping(address => uint256)) public nib;  // nib per ilk per user
+
+    // --- Administration ---
+    function file(bytes32 ilk, address user, bytes32 what, uint256 data) external auth {
+        if (what == "line") line[ilk][user] = data;
+        else if (what == "nib") nib[ilk][user] = data;
+        else revert("CharterManager/file-unrecognized-param");
+    }
+
+    // --- Math ---
+    uint256 constant WAD = 10 ** 18;
+
+    function mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require(y == 0 || (z = x * y) / y == x);
+    }
+    function wmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = mul(x, y) / WAD;
+    }
+
+    // --- Auth ---
+    event Rely(address indexed);
+    event Deny(address indexed);
+    function rely(address usr) public auth { wards[usr] = 1; emit Rely(msg.sender); }
+    function deny(address usr) public auth { wards[usr] = 0; emit Deny(msg.sender); }
+    modifier auth { require(wards[msg.sender] == 1, "CharterManager/non-authed"); _; }
+
+    constructor(address vat_, address vow_) public {
         vat = vat_;
+        vow = vow_;
+        wards[msg.sender] = 1;
     }
 
     function getOrCreateProxy(address usr) public returns (address urp) {
@@ -122,7 +164,18 @@ contract CharterManagerImp {
 
         // Note: This simplification only works because of the u == v == msg.sender restriction above
         address urp = getOrCreateProxy(u);
-        VatLike(vat).frob(AuthGemJoinLike(gemJoin).ilk(), urp, urp, w, dink, dart);
+        bytes32 ilk = AuthGemJoinLike(gemJoin).ilk();
+        VatLike(vat).frob(ilk, urp, urp, w, dink, dart);
+
+        if (dart > 0) {
+            (,uint256 rate,,,) = VatLike(vat).ilks(ilk);
+            (, uint256 art) = VatLike(vat).urns(ilk, urp);
+            require(mul(art, rate) <= line[ilk][u], "CharterManager/user-line-exceeded");
+
+            uint dtab = mul(rate, uint256(dart)); // rad
+            uint256 coin = wmul(dtab, nib[ilk][u]); // rad
+            VatLike(vat).move(urp, vow, coin);
+        }
     }
 
     function flux(address gemJoin, address src, address dst, uint256 wad) external {
