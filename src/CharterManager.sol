@@ -106,15 +106,31 @@ contract CharterManagerImp {
     address public immutable vat;
     address public immutable vow;
 
-    mapping (address => uint256) public wards;
-    mapping (bytes32 => mapping(address => uint256)) public line; // line per ilk per user
-    mapping (bytes32 => mapping(address => uint256)) public nib;  // nib per ilk per user
+    mapping (address => uint256)                     public wards;
+    mapping (bytes32 => bool)                        public gate; // allow only permissioned vaults
+    mapping (bytes32 => uint256)                     public Nib;  // fee percentage for un-permissioned vaults [wad]
+    mapping (bytes32 => mapping(address => uint256)) public nib;  // fee percentage for permissioned vaults    [wad]
+    mapping (bytes32 => mapping(address => uint256)) public line; // debt ceiling for permissioned vaults      [rad]
 
     // --- Administration ---
+    event File(bytes32 indexed ilk, bytes32 indexed what, bool data);
+    event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
+    event File(bytes32 indexed ilk, address indexed user, bytes32 indexed what, uint256 data);
+    function file(bytes32 ilk, bytes32 what, bool data) external auth {
+        if (what == "gate") gate[ilk] = data;
+        else revert("CharterManager/file-unrecognized-param");
+        emit File(ilk, what, data);
+    }
+    function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
+        if (what == "Nib") Nib[ilk] = data;
+        else revert("CharterManager/file-unrecognized-param");
+        emit File(ilk, what, data);
+    }
     function file(bytes32 ilk, address user, bytes32 what, uint256 data) external auth {
         if (what == "line") line[ilk][user] = data;
         else if (what == "nib") nib[ilk][user] = data;
         else revert("CharterManager/file-unrecognized-param");
+        emit File(ilk, user, what, data);
     }
 
     // --- Math ---
@@ -169,19 +185,28 @@ contract CharterManagerImp {
         address urp = getOrCreateProxy(u);
         bytes32 ilk = AuthGemJoinLike(gemJoin).ilk();
 
-        if (dart > 0 && nib[ilk][u] > 0) {
-            (,uint256 rate,,,) = VatLike(vat).ilks(ilk);
+        bool _gate = gate[ilk];
+        uint256 _nib = _gate ? nib[ilk][u] : Nib[ilk];
+
+        uint256 rate;
+        if (dart > 0 && (_nib > 0 || _gate)) {
+            (,rate,,,) = VatLike(vat).ilks(ilk);
+        }
+
+        if (dart > 0 && _nib > 0) {
             uint256 dtab = mul(rate, uint256(dart)); // rad
-            uint256 coin = wmul(dtab, nib[ilk][u]); // rad
+            uint256 coin = wmul(dtab, _nib);         // rad
 
             VatLike(vat).frob(ilk, urp, urp, urp, dink, dart);
             VatLike(vat).move(urp, w, sub(dtab, coin));
             VatLike(vat).move(urp, vow, coin);
-
-            (, uint256 art) = VatLike(vat).urns(ilk, urp);
-            require(mul(art, rate) <= line[ilk][u], "CharterManager/user-line-exceeded");
         } else {
             VatLike(vat).frob(ilk, urp, urp, w, dink, dart);
+        }
+
+        if (dart > 0 && _gate) {
+            (, uint256 art) = VatLike(vat).urns(ilk, urp);
+            require(mul(art, rate) <= line[ilk][u], "CharterManager/user-line-exceeded");
         }
     }
 
