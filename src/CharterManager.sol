@@ -210,6 +210,15 @@ contract CharterManagerImp {
         }
     }
 
+    function flux(address gemJoin, address src, address dst, uint256 wad) external {
+        require(src == msg.sender, "CharterManager/not-allowed");
+
+        address surp = getOrCreateProxy(src);
+        address durp = getOrCreateProxy(dst);
+
+        VatLike(vat).flux(AuthGemJoinLike(gemJoin).ilk(), surp, durp, wad);
+    }
+
     function onLiquidation(address crop, address usr, uint256 wad) external {}
 
     function onVatFlux(address crop, address from, address to, uint256 wad) external {}
