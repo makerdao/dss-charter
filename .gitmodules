@@ -5,3 +5,6 @@
 	path = lib/dss-gem-joins
 	url = https://github.com/dapphub/dss-gem-joins
 	branch = dss-v2.0
+[submodule "lib/dss-crop-join"]
+	path = lib/dss-crop-join
+	url = https://github.com/makerdao/dss-crop-join
