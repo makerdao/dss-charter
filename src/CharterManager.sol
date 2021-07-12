@@ -35,10 +35,10 @@ interface VatLike {
     );
 }
 
-interface AuthGemJoinLike {
+interface ManagedGemJoinLike {
     function gem() external view returns (address);
     function ilk() external view returns (bytes32);
-    function join(address, address, uint256) external;
+    function join(address, uint256) external;
     function exit(address, address, uint256) external;
 }
 
@@ -106,7 +106,8 @@ contract CharterManagerImp {
     address public immutable vat;
     address public immutable vow;
 
-    mapping (address => uint256)                     public wards;
+    bool                                             public initialized;
+    mapping (address => uint256)                     public iwards;
     mapping (bytes32 => bool)                        public gate; // allow only permissioned vaults
     mapping (bytes32 => uint256)                     public Nib;  // fee percentage for un-permissioned vaults [wad]
     mapping (bytes32 => mapping(address => uint256)) public nib;  // fee percentage for permissioned vaults    [wad]
@@ -147,16 +148,23 @@ contract CharterManagerImp {
     }
 
     // --- Auth ---
-    event Rely(address indexed);
-    event Deny(address indexed);
-    function rely(address usr) public auth { wards[usr] = 1; emit Rely(msg.sender); }
-    function deny(address usr) public auth { wards[usr] = 0; emit Deny(msg.sender); }
-    modifier auth { require(wards[msg.sender] == 1, "CharterManager/non-authed"); _; }
+    event IRely(address indexed);
+    event IDeny(address indexed);
+    function irely(address usr) public auth { iwards[usr] = 1; emit IRely(msg.sender); }
+    function ideny(address usr) public auth { iwards[usr] = 0; emit IDeny(msg.sender); }
+    modifier auth { require(iwards[msg.sender] == 1, "CharterManager/non-authed"); _; }
 
     constructor(address vat_, address vow_) public {
         vat = vat_;
         vow = vow_;
-        wards[msg.sender] = 1;
+    }
+
+    function init() external {
+        require(!initialized, "CharterManager/already-initialized");
+        initialized = true;
+
+        iwards[msg.sender] = 1;
+        emit IRely(msg.sender);
     }
 
     function getOrCreateProxy(address usr) public returns (address urp) {
@@ -167,15 +175,15 @@ contract CharterManagerImp {
     }
 
     function join(address gemJoin, address usr, uint256 val) external {
-        TokenLike(AuthGemJoinLike(gemJoin).gem()).transferFrom(msg.sender, address(this), val);
-        TokenLike(AuthGemJoinLike(gemJoin).gem()).approve(gemJoin, val);
-        AuthGemJoinLike(gemJoin).join(getOrCreateProxy(usr), usr, val);
+        TokenLike(ManagedGemJoinLike(gemJoin).gem()).transferFrom(msg.sender, address(this), val);
+        TokenLike(ManagedGemJoinLike(gemJoin).gem()).approve(gemJoin, val);
+        ManagedGemJoinLike(gemJoin).join(getOrCreateProxy(usr), val);
     }
 
     function exit(address gemJoin, address usr, uint256 val) external {
         address urp = proxy[msg.sender];
         require(urp != address(0), "CharterManager/non-existing-urp");
-        AuthGemJoinLike(gemJoin).exit(urp, usr, val);
+        ManagedGemJoinLike(gemJoin).exit(urp, usr, val);
     }
 
     function frob(address gemJoin, address u, address v, address w, int256 dink, int256 dart) external {
@@ -183,7 +191,7 @@ contract CharterManagerImp {
 
         // Note: This simplification only works because of the u == v == msg.sender restriction above
         address urp = getOrCreateProxy(u);
-        bytes32 ilk = AuthGemJoinLike(gemJoin).ilk();
+        bytes32 ilk = ManagedGemJoinLike(gemJoin).ilk();
 
         bool _gate = gate[ilk];
         uint256 _nib = _gate ? nib[ilk][u] : Nib[ilk];
@@ -216,7 +224,7 @@ contract CharterManagerImp {
         address surp = getOrCreateProxy(src);
         address durp = getOrCreateProxy(dst);
 
-        VatLike(vat).flux(AuthGemJoinLike(gemJoin).ilk(), surp, durp, wad);
+        VatLike(vat).flux(ManagedGemJoinLike(gemJoin).ilk(), surp, durp, wad);
     }
 
     function onLiquidation(address crop, address usr, uint256 wad) external {}
