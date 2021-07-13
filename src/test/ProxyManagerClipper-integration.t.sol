@@ -260,7 +260,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
     }
 
     function test_yank() public {
-        address urp = CharterManager(address(manager)).proxy(address(this));
+        address urp = manager.proxy(address(this));
         uint256 initialGemBal   = gem.balanceOf(address(this));
 
         uint256 id = dog.bark(ILK, usr.proxy(), address(this));

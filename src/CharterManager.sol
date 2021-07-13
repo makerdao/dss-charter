@@ -58,11 +58,10 @@ contract UrnProxy {
 
 contract CharterManager {
     mapping (address => uint256) public wards;
-    mapping (address => address) public proxy;  // UrnProxy per user
     address public implementation;
 
-    event Rely(address indexed);
-    event Deny(address indexed);
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
     event SetImplementation(address indexed);
 
     constructor() public {
@@ -70,9 +69,20 @@ contract CharterManager {
         emit Rely(msg.sender);
     }
 
-    function rely(address usr) public auth { wards[usr] = 1; emit Rely(msg.sender); }
-    function deny(address usr) public auth { wards[usr] = 0; emit Deny(msg.sender); }
-    modifier auth { require(wards[msg.sender] == 1, "CharterManager/non-authed"); _; }
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(msg.sender);
+    }
+
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(msg.sender);
+    }
+
+    modifier auth {
+        require(wards[msg.sender] == 1, "CharterManager/non-authed");
+        _;
+    }
 
     function setImplementation(address implementation_) external auth {
         implementation = implementation_;
@@ -100,8 +110,9 @@ contract CharterManager {
 contract CharterManagerImp {
     // --- Data ---
     mapping (address => uint256) public wards;
-    mapping (address => address) proxy;  // UrnProxy per user
-    bytes32 slot2;
+    bytes32 slot1;
+    mapping (address => address) public proxy;  // UrnProxy per user
+    mapping (address => mapping (address => uint256)) public can;
 
     address public immutable vat;
     address public immutable vow;
@@ -153,6 +164,21 @@ contract CharterManagerImp {
         vow = vow_;
     }
 
+    event Allow(address indexed from, address indexed to);
+    event Disallow(address indexed from, address indexed to);
+    modifier allowed(address usr) {
+        require(msg.sender == usr || can[usr][msg.sender] == 1, "CharterManager/not-allowed");
+        _;
+    }
+    function allow(address usr) external {
+        can[msg.sender][usr] = 1;
+        emit Allow(msg.sender, usr);
+    }
+    function disallow(address usr) external {
+        can[msg.sender][usr] = 0;
+        emit Disallow(msg.sender, usr);
+    }
+
     function getOrCreateProxy(address usr) public returns (address urp) {
         urp = proxy[usr];
         if (urp == address(0)) {
@@ -172,13 +198,11 @@ contract CharterManagerImp {
         ManagedGemJoinLike(gemJoin).exit(urp, usr, val);
     }
 
-    function frob(address gemJoin, address u, address v, address w, int256 dink, int256 dart) external {
-        require(u == msg.sender && v == msg.sender && w == msg.sender, "CharterManager/not-allowed");
-
-        // Note: This simplification only works because of the u == v == msg.sender restriction above
+    function frob(address gemJoin, address u, address v, address w, int256 dink, int256 dart) external allowed(u) {
+        require(u == v && w == msg.sender, "CharterManager/not-matching");
         address urp = getOrCreateProxy(u);
-        bytes32 ilk = ManagedGemJoinLike(gemJoin).ilk();
 
+        bytes32 ilk = ManagedGemJoinLike(gemJoin).ilk();
         bool _gate = gate[ilk];
         uint256 _nib = _gate ? nib[ilk][u] : Nib[ilk];
 
@@ -204,18 +228,16 @@ contract CharterManagerImp {
         }
     }
 
-    function flux(address gemJoin, address src, address dst, uint256 wad) external {
-        require(src == msg.sender, "CharterManager/not-allowed");
-
+    function flux(address gemJoin, address src, address dst, uint256 wad) external allowed(src) {
         address surp = getOrCreateProxy(src);
         address durp = getOrCreateProxy(dst);
 
         VatLike(vat).flux(ManagedGemJoinLike(gemJoin).ilk(), surp, durp, wad);
     }
 
-    function onLiquidation(address crop, address usr, uint256 wad) external {}
+    function onLiquidation(address gemJoin, address usr, uint256 wad) external {}
 
-    function onVatFlux(address crop, address from, address to, uint256 wad) external {}
+    function onVatFlux(address gemJoin, address from, address to, uint256 wad) external {}
 
     function quit(bytes32 ilk, address dst) external {
         require(VatLike(vat).live() == 0, "CharterManager/vat-still-live");
