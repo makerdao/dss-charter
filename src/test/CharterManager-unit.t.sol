@@ -106,12 +106,10 @@ contract Usr {
 
     ManagedGemJoin adapter;
     CharterManagerImp manager;
-    MockVat vat;
 
-    constructor(ManagedGemJoin adapter_, CharterManagerImp manager_, MockVat vat_) public {
+    constructor(ManagedGemJoin adapter_, CharterManagerImp manager_) public {
         adapter = adapter_;
         manager = manager_;
-        vat = vat_;
     }
 
     function approve(address coin, address usr) public {
@@ -133,13 +131,13 @@ contract Usr {
         return CharterManager(address(manager)).proxy(address(this));
     }
     function gems() public view returns (uint256) {
-        return vat.gem(adapter.ilk(), proxy());
+        return adapter.vat().gem(adapter.ilk(), proxy());
     }
     function urn() public view returns (uint256, uint256) {
-        return vat.urns(adapter.ilk(), proxy());
+        return adapter.vat().urns(adapter.ilk(), proxy());
     }
     function dai() public view returns (uint256) {
-        return vat.dai(address(this));
+        return adapter.vat().dai(address(this));
     }
     function frob(int256 dink, int256 dart) public {
         manager.frob(address(adapter), address(this), address(this), address(this), dink, dart);
@@ -233,8 +231,8 @@ contract CharterManagerTest is TestBase {
         return init_user(200 * 1e6);
     }
     function init_user(uint256 cash) internal returns (Usr a, Usr b) {
-        a = new Usr(adapter, manager, vat);
-        b = new Usr(adapter, manager, vat);
+        a = new Usr(adapter, manager);
+        b = new Usr(adapter, manager);
 
         gem.transfer(address(a), cash);
         gem.transfer(address(b), cash);
