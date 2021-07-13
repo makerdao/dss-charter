@@ -453,8 +453,9 @@ contract CharterManagerTest is TestBase {
         assertEq(art, 50 * 1e18);
         assertEq(vat.gem(ilk, address(a)), 0);
 
-        // Can now interact directly with the vat to exit
+        // Can now interact directly with the vat to unencumber the collateral.
 
+        // frobDirect used as shortcut instead of end.free which would the grab ink after vat.cage.
         a.frobDirect(address(a), address(a), address(a), -100 * 1e18, -50 * 1e18);
         assertEq(vat.gem(ilk, address(a)), 100 * 1e18);
         (ink, art) = vat.urns(ilk, address(a));
