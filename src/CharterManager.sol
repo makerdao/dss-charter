@@ -99,15 +99,13 @@ contract CharterManager {
 
 contract CharterManagerImp {
     // --- Data ---
-    bytes32 slot0;
+    mapping (address => uint256) public wards;
     mapping (address => address) proxy;  // UrnProxy per user
     bytes32 slot2;
 
     address public immutable vat;
     address public immutable vow;
 
-    bool                                             public initialized;
-    mapping (address => uint256)                     public iwards;
     mapping (bytes32 => bool)                        public gate; // allow only permissioned vaults
     mapping (bytes32 => uint256)                     public Nib;  // fee percentage for un-permissioned vaults [wad]
     mapping (bytes32 => mapping(address => uint256)) public nib;  // fee percentage for permissioned vaults    [wad]
@@ -148,23 +146,11 @@ contract CharterManagerImp {
     }
 
     // --- Auth ---
-    event IRely(address indexed);
-    event IDeny(address indexed);
-    function irely(address usr) public auth { iwards[usr] = 1; emit IRely(msg.sender); }
-    function ideny(address usr) public auth { iwards[usr] = 0; emit IDeny(msg.sender); }
-    modifier auth { require(iwards[msg.sender] == 1, "CharterManager/non-authed"); _; }
+    modifier auth { require(wards[msg.sender] == 1, "CharterManager/non-authed"); _; }
 
     constructor(address vat_, address vow_) public {
         vat = vat_;
         vow = vow_;
-    }
-
-    function init() external {
-        require(!initialized, "CharterManager/already-initialized");
-        initialized = true;
-
-        iwards[msg.sender] = 1;
-        emit IRely(msg.sender);
     }
 
     function getOrCreateProxy(address usr) public returns (address urp) {

@@ -211,7 +211,6 @@ contract CharterManagerTest is TestBase {
         CharterManager base = new CharterManager();
         base.setImplementation(address(new CharterManagerImp(address(vat), address(vow))));
         manager = CharterManagerImp(address(base));
-        manager.init();
 
         adapter.rely(address(manager));
         adapter.deny(address(this));    // Only access should be through manager
