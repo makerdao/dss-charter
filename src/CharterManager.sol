@@ -111,16 +111,16 @@ contract CharterManagerImp {
     // --- Data ---
     mapping (address => uint256) public wards;
     bytes32 slot1;
-    mapping (address => address) public proxy;  // UrnProxy per user
+    mapping (address => address) public proxy; // UrnProxy per user
     mapping (address => mapping (address => uint256)) public can;
-
-    address public immutable vat;
-    address public immutable vow;
 
     mapping (bytes32 => bool)                        public gate; // allow only permissioned vaults
     mapping (bytes32 => uint256)                     public Nib;  // fee percentage for un-permissioned vaults [wad]
     mapping (bytes32 => mapping(address => uint256)) public nib;  // fee percentage for permissioned vaults    [wad]
     mapping (bytes32 => mapping(address => uint256)) public line; // debt ceiling for permissioned vaults      [rad]
+
+    address public immutable vat;
+    address public immutable vow;
 
     // --- Administration ---
     event File(bytes32 indexed ilk, bytes32 indexed what, bool data);
