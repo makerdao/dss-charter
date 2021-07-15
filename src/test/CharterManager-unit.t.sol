@@ -222,13 +222,13 @@ contract CharterManagerTest is TestBase {
 
     function init_ilk_ungate(uint256 Nib) public {
         vat.mockIlk(ilk, 1e27);
-        manager.file(ilk, "gate", false);
+        manager.file(ilk, "gate", 0);
         manager.file(ilk, "Nib", Nib);
     }
 
     function init_ilk_gate(address user, uint256 nib, uint256 line) public {
         vat.mockIlk(ilk, 1e27);
-        manager.file(ilk, "gate", true);
+        manager.file(ilk, "gate", 1);
         manager.file(ilk, user, "nib", nib);
         manager.file(ilk, user, "line", line);
     }

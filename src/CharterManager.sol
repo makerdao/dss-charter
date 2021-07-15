@@ -114,7 +114,7 @@ contract CharterManagerImp {
     mapping (address => address) public proxy; // UrnProxy per user
     mapping (address => mapping (address => uint256)) public can;
 
-    mapping (bytes32 => bool)                        public gate; // allow only permissioned vaults
+    mapping (bytes32 => uint256)                     public gate; // allow only permissioned vaults
     mapping (bytes32 => uint256)                     public Nib;  // fee percentage for un-permissioned vaults [wad]
     mapping (bytes32 => mapping(address => uint256)) public nib;  // fee percentage for permissioned vaults    [wad]
     mapping (bytes32 => mapping(address => uint256)) public line; // debt ceiling for permissioned vaults      [rad]
@@ -126,13 +126,9 @@ contract CharterManagerImp {
     event File(bytes32 indexed ilk, bytes32 indexed what, bool data);
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
     event File(bytes32 indexed ilk, address indexed user, bytes32 indexed what, uint256 data);
-    function file(bytes32 ilk, bytes32 what, bool data) external auth {
-        if (what == "gate") gate[ilk] = data;
-        else revert("CharterManager/file-unrecognized-param");
-        emit File(ilk, what, data);
-    }
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
-        if (what == "Nib") Nib[ilk] = data;
+        if (what == "gate") gate[ilk] = data;
+        else if (what == "Nib") Nib[ilk] = data;
         else revert("CharterManager/file-unrecognized-param");
         emit File(ilk, what, data);
     }
@@ -203,11 +199,11 @@ contract CharterManagerImp {
         address urp = getOrCreateProxy(u);
 
         bytes32 ilk = ManagedGemJoinLike(gemJoin).ilk();
-        bool _gate = gate[ilk];
-        uint256 _nib = _gate ? nib[ilk][u] : Nib[ilk];
+        uint256 _gate = gate[ilk];
+        uint256 _nib = (_gate == 1) ? nib[ilk][u] : Nib[ilk];
 
         uint256 rate;
-        if (dart > 0 && (_nib > 0 || _gate)) {
+        if (dart > 0 && (_nib > 0 || _gate == 1)) {
             (,rate,,,) = VatLike(vat).ilks(ilk);
         }
 
@@ -222,7 +218,7 @@ contract CharterManagerImp {
             VatLike(vat).frob(ilk, urp, urp, w, dink, dart);
         }
 
-        if (dart > 0 && _gate) {
+        if (dart > 0 && _gate == 1) {
             (, uint256 art) = VatLike(vat).urns(ilk, urp);
             require(mul(art, rate) <= line[ilk][u], "CharterManager/user-line-exceeded");
         }
