@@ -3,7 +3,7 @@
 	url = https://github.com/dapphub/ds-test
 [submodule "lib/dss-gem-joins"]
 	path = lib/dss-gem-joins
-	url = https://github.com/dapphub/dss-gem-joins
+	url = https://github.com/makerdao/dss-gem-joins
 	branch = join-managed
 [submodule "lib/dss-crop-join"]
 	path = lib/dss-crop-join
