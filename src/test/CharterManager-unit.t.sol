@@ -21,6 +21,13 @@ import {ManagedGemJoin} from "lib/dss-gem-joins/src/join-managed.sol";
 import "src/CharterManager.sol";
 
 contract MockVat {
+    mapping(address => mapping (address => uint)) public can;
+    function hope(address usr) external { can[msg.sender][usr] = 1; }
+    function nope(address usr) external { can[msg.sender][usr] = 0; }
+    function wish(address bit, address usr) internal view returns (bool) {
+        return either(bit == usr, can[bit][usr] == 1);
+    }
+
     struct Urn {
         uint256 ink;   // Locked Collateral  [wad]
         uint256 art;   // Normalised Debt    [wad]
@@ -40,6 +47,12 @@ contract MockVat {
 
     function mockIlk(bytes32 ilk, uint256 _rate) external {
         ilks[ilk].rate = _rate;
+    }
+    function either(bool x, bool y) internal pure returns (bool z) {
+        assembly{ z := or(x, y)}
+    }
+    function both(bool x, bool y) internal pure returns (bool z) {
+        assembly{ z := and(x, y)}
     }
     function add(uint256 x, int256 y) internal pure returns (uint256 z) {
         z = x + uint256(y);
@@ -61,6 +74,10 @@ contract MockVat {
         gem[ilk][usr] = add(gem[ilk][usr], wad);
     }
     function frob(bytes32 ilk, address u, address v, address w, int256 dink, int256 dart) external {
+        require(either(both(dart <= 0, dink >= 0), wish(u, msg.sender)), "Vat/not-allowed-u");
+        require(either(dink <= 0, wish(v, msg.sender)), "Vat/not-allowed-v");
+        require(either(dart >= 0, wish(w, msg.sender)), "Vat/not-allowed-w");
+
         Urn storage urn = urns[ilk][u];
         urn.ink = add(urn.ink, dink);
         urn.art = add(urn.art, dart);
@@ -68,6 +85,8 @@ contract MockVat {
         dai[w] = add(dai[w], dart * 10**27);
     }
     function fork(bytes32 ilk, address src, address dst, int256 dink, int256 dart) external {
+        require(both(wish(src, msg.sender), wish(dst, msg.sender)), "Vat/not-allowed");
+
         Urn storage u = urns[ilk][src];
         Urn storage v = urns[ilk][dst];
 
@@ -77,14 +96,17 @@ contract MockVat {
         v.art = add(v.art, dart);
     }
     function flux(bytes32 ilk, address src, address dst, uint256 wad) external {
+        require(wish(src, msg.sender), "Vat/not-allowed");
+
         gem[ilk][src] = sub(gem[ilk][src], wad);
         gem[ilk][dst] = add(gem[ilk][dst], wad);
     }
     function move(address src, address dst, uint256 rad) external {
+        require(wish(src, msg.sender), "Vat/not-allowed");
+
         dai[src] = sub(dai[src], rad);
         dai[dst] = add(dai[dst], rad);
     }
-    function hope(address usr) external {}
     function cage() external {
         live = 0;
     }
@@ -166,6 +188,12 @@ contract Usr {
     function quit(address dst) public {
         manager.quit(adapter.ilk(), dst);
     }
+    function hope(address vat, address usr) public {
+        MockVat(vat).hope(usr);
+    }
+    function nope(address vat, address usr) public {
+        MockVat(vat).nope(usr);
+    }
 
     function try_call(address addr, bytes calldata data) external returns (bool) {
         bytes memory _data = data;
@@ -245,6 +273,9 @@ contract CharterManagerTest is TestBase {
 
         a.approve(address(gem), address(manager));
         b.approve(address(gem), address(manager));
+
+        a.hope(address(vat), address(manager));
+        b.hope(address(vat), address(manager));
     }
 
     function test_make_proxy() public {
@@ -380,6 +411,18 @@ contract CharterManagerTest is TestBase {
         assertEq(art, 1 * 1e18);
         assertEq(a.dai(), 0);
         assertEq(a.gems(), 100 * 1e18);
+    }
+
+    function testFail_frob_undelegated_manager() public {
+        (Usr a,) = init_user();
+        init_ilk_gate(address(a), 0, 50 * 1e45);
+        a.nope(address(vat), address(manager));
+
+        a.join(100 * 1e6);
+        a.frob(100 * 1e18, 50 * 1e18);
+
+        // loan repayment should fail as its destination did not delegate the manager
+        a.frob(-100 * 1e18, -50 * 1e18);
     }
 
     function testFail_frob_gate_line_exceeded() public {
