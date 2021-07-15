@@ -518,12 +518,6 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 0);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
     }
-    // Non-msg.sender srcs for flux should be disallowed for now
-    function testFail_flux() public {
-        (Usr a, Usr b) = init_user();
-        b.join(100 * 1e6);
-        a.flux(address(b), address(a), 100 * 1e18);
-    }
 
     function test_flux_from_other() public {
         (Usr a, Usr b) = init_user();
