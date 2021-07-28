@@ -20,6 +20,12 @@ import "./TestBase.sol";
 import {ManagedGemJoin} from "lib/dss-gem-joins/src/join-managed.sol";
 import "src/CharterManager.sol";
 
+interface VatHelpersLike {
+    function urns(bytes32, address) external view returns (uint256, uint256);
+    function dai(address) external view returns (uint256);
+    function gem(bytes32, address) external view returns (uint256);
+}
+
 contract MockVat {
     mapping(address => mapping (address => uint)) public can;
     function hope(address usr) external { can[msg.sender][usr] = 1; }
@@ -153,13 +159,13 @@ contract Usr {
         return manager.proxy(address(this));
     }
     function gems() public view returns (uint256) {
-        return adapter.vat().gem(adapter.ilk(), proxy());
+        return VatHelpersLike(address(adapter.vat())).gem(adapter.ilk(), proxy());
     }
     function urn() public view returns (uint256, uint256) {
-        return adapter.vat().urns(adapter.ilk(), proxy());
+        return VatHelpersLike(address(adapter.vat())).urns(adapter.ilk(), proxy());
     }
     function dai() public view returns (uint256) {
-        return adapter.vat().dai(address(this));
+        return VatHelpersLike(address(adapter.vat())).dai(address(this));
     }
     function allow(address usr) public {
         manager.allow(address(usr));
