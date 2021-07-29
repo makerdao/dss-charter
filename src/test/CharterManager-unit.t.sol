@@ -260,11 +260,11 @@ contract CharterManagerTest is TestBase {
         manager.file(ilk, "Nib", Nib);
     }
 
-    function init_ilk_gate(address user, uint256 nib, uint256 line) public {
+    function init_ilk_gate(address user, uint256 nib, uint256 uline) public {
         vat.mockIlk(ilk, 1e27);
         manager.file(ilk, "gate", 1);
         manager.file(ilk, user, "nib", nib);
-        manager.file(ilk, user, "line", line);
+        manager.file(ilk, user, "uline", uline);
     }
 
     function init_user() internal returns (Usr a, Usr b) {
@@ -431,7 +431,7 @@ contract CharterManagerTest is TestBase {
         a.frob(-100 * 1e18, -50 * 1e18);
     }
 
-    function testFail_frob_gate_line_exceeded() public {
+    function testFail_frob_gate_uline_exceeded() public {
         (Usr a,) = init_user();
         init_ilk_gate(address(a), 0, 50 * 1e45);
 

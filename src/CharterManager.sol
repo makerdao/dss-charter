@@ -110,33 +110,31 @@ contract CharterManager {
 contract CharterManagerImp {
     // --- Data ---
     mapping (address => uint256) public wards;
-    bytes32 slot1;
+    bytes32 slot1; // avoid collision with proxy's implementation field
     mapping (address => address) public proxy; // UrnProxy per user
     mapping (address => mapping (address => uint256)) public can;
-
-    mapping (bytes32 => uint256)                     public gate; // allow only permissioned vaults
-    mapping (bytes32 => uint256)                     public Nib;  // fee percentage for un-permissioned vaults [wad]
-    mapping (bytes32 => mapping(address => uint256)) public nib;  // fee percentage for permissioned vaults    [wad]
-    mapping (bytes32 => mapping(address => uint256)) public line; // debt ceiling for permissioned vaults      [rad]
+    mapping (bytes32 => uint256)                      public gate;  // allow only permissioned vaults
+    mapping (bytes32 => uint256)                      public Nib;   // fee percentage for un-permissioned vaults [wad]
+    mapping (bytes32 => mapping(address => uint256))  public nib;   // fee percentage for permissioned vaults    [wad]
+    mapping (bytes32 => mapping(address => uint256))  public uline; // debt ceiling for permissioned vaults      [rad]
 
     address public immutable vat;
     address public immutable vow;
 
     // --- Administration ---
-    event File(bytes32 indexed ilk, bytes32 indexed what, bool data);
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
-    event File(bytes32 indexed ilk, address indexed user, bytes32 indexed what, uint256 data);
+    event File(bytes32 indexed ilk, address indexed usr, bytes32 indexed what, uint256 data);
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
         if (what == "gate") gate[ilk] = data;
         else if (what == "Nib") Nib[ilk] = data;
         else revert("CharterManager/file-unrecognized-param");
         emit File(ilk, what, data);
     }
-    function file(bytes32 ilk, address user, bytes32 what, uint256 data) external auth {
-        if (what == "line") line[ilk][user] = data;
-        else if (what == "nib") nib[ilk][user] = data;
+    function file(bytes32 ilk, address usr, bytes32 what, uint256 data) external auth {
+        if (what == "uline") uline[ilk][usr] = data;
+        else if (what == "nib") nib[ilk][usr] = data;
         else revert("CharterManager/file-unrecognized-param");
-        emit File(ilk, user, what, data);
+        emit File(ilk, usr, what, data);
     }
 
     // --- Math ---
@@ -153,7 +151,10 @@ contract CharterManagerImp {
     }
 
     // --- Auth ---
-    modifier auth { require(wards[msg.sender] == 1, "CharterManager/non-authed"); _; }
+    modifier auth {
+        require(wards[msg.sender] == 1, "CharterManager/non-authed");
+        _;
+    }
 
     constructor(address vat_, address vow_) public {
         vat = vat_;
@@ -175,10 +176,12 @@ contract CharterManagerImp {
         emit Disallow(msg.sender, usr);
     }
 
+    event NewProxy(address indexed usr, address indexed urp);
     function getOrCreateProxy(address usr) public returns (address urp) {
         urp = proxy[usr];
         if (urp == address(0)) {
             urp = proxy[usr] = address(new UrnProxy(address(vat), usr));
+            emit NewProxy(usr, urp);
         }
     }
 
@@ -220,7 +223,7 @@ contract CharterManagerImp {
 
         if (dart > 0 && _gate == 1) {
             (, uint256 art) = VatLike(vat).urns(ilk, urp);
-            require(mul(art, rate) <= line[ilk][u], "CharterManager/user-line-exceeded");
+            require(mul(art, rate) <= uline[ilk][u], "CharterManager/user-line-exceeded");
         }
     }
 
