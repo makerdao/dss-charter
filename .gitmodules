@@ -4,7 +4,6 @@
 [submodule "lib/dss-gem-joins"]
 	path = lib/dss-gem-joins
 	url = https://github.com/makerdao/dss-gem-joins
-	branch = join-managed
 [submodule "lib/dss-crop-join"]
 	path = lib/dss-crop-join
 	url = https://github.com/makerdao/dss-crop-join
