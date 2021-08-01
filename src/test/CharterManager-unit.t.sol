@@ -17,117 +17,20 @@
 pragma solidity 0.6.12;
 
 import "./TestBase.sol";
-import {ManagedGemJoin} from "lib/dss-gem-joins/src/join-managed.sol";
 import "src/CharterManager.sol";
+
+import {Vat} from "dss/vat.sol";
+import {Jug} from 'dss/jug.sol';
+import {Vow} from 'dss/vow.sol';
+import {Spotter} from "dss/spot.sol";
+import {DaiJoin} from 'dss/join.sol';
+import {DSValue} from 'ds-value/value.sol';
+import {ManagedGemJoin} from "dss-gem-joins/join-managed.sol";
 
 interface VatHelpersLike {
     function urns(bytes32, address) external view returns (uint256, uint256);
     function dai(address) external view returns (uint256);
     function gem(bytes32, address) external view returns (uint256);
-}
-
-contract MockVat {
-    mapping(address => mapping (address => uint)) public can;
-    function hope(address usr) external { can[msg.sender][usr] = 1; }
-    function nope(address usr) external { can[msg.sender][usr] = 0; }
-    function wish(address bit, address usr) internal view returns (bool) {
-        return either(bit == usr, can[bit][usr] == 1);
-    }
-
-    struct Urn {
-        uint256 ink;   // Locked Collateral  [wad]
-        uint256 art;   // Normalised Debt    [wad]
-    }
-    struct Ilk {
-        uint256 Art;   // Total Normalised Debt     [wad]
-        uint256 rate;  // Accumulated Rates         [ray]
-        uint256 spot;  // Price with Safety Margin  [ray]
-        uint256 line;  // Debt Ceiling              [rad]
-        uint256 dust;  // Urn Debt Floor            [rad]
-    }
-    mapping (bytes32 => Ilk) public ilks;
-    mapping (bytes32 => mapping (address => uint256)) public gem;
-    mapping (bytes32 => mapping (address => Urn)) public urns;
-    mapping (address => uint256) public dai;
-    uint256 public live = 1;
-
-    function mockIlk(bytes32 ilk, uint256 _rate) external {
-        ilks[ilk].rate = _rate;
-    }
-    function either(bool x, bool y) internal pure returns (bool z) {
-        assembly{ z := or(x, y)}
-    }
-    function both(bool x, bool y) internal pure returns (bool z) {
-        assembly{ z := and(x, y)}
-    }
-    function add(uint256 x, int256 y) internal pure returns (uint256 z) {
-        z = x + uint256(y);
-        require(y >= 0 || z <= x, "vat/add-fail");
-        require(y <= 0 || z >= x, "vat/add-fail");
-    }
-    function sub(uint256 x, int256 y) internal pure returns (uint256 z) {
-        z = x - uint256(y);
-        require(y <= 0 || z <= x, "vat/sub-fail");
-        require(y >= 0 || z >= x, "vat/sub-fail");
-    }
-    function add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "vat/add-fail");
-    }
-    function sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "vat/sub-fail");
-    }
-    function slip(bytes32 ilk, address usr, int256 wad) external {
-        gem[ilk][usr] = add(gem[ilk][usr], wad);
-    }
-    function frob(bytes32 ilk, address u, address v, address w, int256 dink, int256 dart) external {
-        require(either(both(dart <= 0, dink >= 0), wish(u, msg.sender)), "Vat/not-allowed-u");
-        require(either(dink <= 0, wish(v, msg.sender)), "Vat/not-allowed-v");
-        require(either(dart >= 0, wish(w, msg.sender)), "Vat/not-allowed-w");
-
-        Urn storage urn = urns[ilk][u];
-        urn.ink = add(urn.ink, dink);
-        urn.art = add(urn.art, dart);
-        gem[ilk][v] = sub(gem[ilk][v], dink);
-        dai[w] = add(dai[w], dart * 10**27);
-    }
-    function fork(bytes32 ilk, address src, address dst, int256 dink, int256 dart) external {
-        require(both(wish(src, msg.sender), wish(dst, msg.sender)), "Vat/not-allowed");
-
-        Urn storage u = urns[ilk][src];
-        Urn storage v = urns[ilk][dst];
-
-        u.ink = sub(u.ink, dink);
-        u.art = sub(u.art, dart);
-        v.ink = add(v.ink, dink);
-        v.art = add(v.art, dart);
-    }
-    function flux(bytes32 ilk, address src, address dst, uint256 wad) external {
-        require(wish(src, msg.sender), "Vat/not-allowed");
-
-        gem[ilk][src] = sub(gem[ilk][src], wad);
-        gem[ilk][dst] = add(gem[ilk][dst], wad);
-    }
-    function move(address src, address dst, uint256 rad) external {
-        require(wish(src, msg.sender), "Vat/not-allowed");
-
-        dai[src] = sub(dai[src], rad);
-        dai[dst] = add(dai[dst], rad);
-    }
-    function cage() external {
-        live = 0;
-    }
-}
-
-contract MockVow {
-    MockVat vat;
-
-    constructor(MockVat vat_) public {
-        vat = vat_;
-    }
-
-    function dai() public view returns (uint256) {
-        return vat.dai(address(this));
-    }
 }
 
 contract Usr {
@@ -195,10 +98,10 @@ contract Usr {
         manager.quit(adapter.ilk(), dst);
     }
     function hope(address vat, address usr) public {
-        MockVat(vat).hope(usr);
+        Vat(vat).hope(usr);
     }
     function nope(address vat, address usr) public {
-        MockVat(vat).nope(usr);
+        Vat(vat).nope(usr);
     }
 
     function try_call(address addr, bytes calldata data) external returns (bool) {
@@ -231,21 +134,60 @@ contract Usr {
 contract CharterManagerTest is TestBase {
 
     Token               gem;
-    MockVat             vat;
-    MockVow             vow;
-    address             self;
-    bytes32             ilk = "TOKEN-A";
+    Token               dai;
+    Vat                 vat;
+    Vow                 vow;
+    Jug                 jug;
+    Spotter             spotter;
+    DSValue             pip;
+    DaiJoin             daiJoin;
     ManagedGemJoin      adapter;
     CharterManagerImp   manager;
 
+    address             self;
+    bytes32             ilk = "TOKEN-A";
+
     uint256 constant NIB_ONE_PCT = 1.0 * 1e16;
+    uint256 constant CEILING     = 100 * 1e18;
 
     function setUp() public virtual {
         self = address(this);
         gem = new Token(6, 1000 * 1e6);
-        vat = new MockVat();
-        vow = new MockVow(vat);
+
+        // standard Vat setup
+        vat = new Vat();
+        vow = new Vow(address(vat), address(0), address(0));
+
+        jug = new Jug(address(vat));
+        jug.file("vow", address(vow));
+        vat.rely(address(jug));
+
+        spotter = new Spotter(address(vat));
+        vat.rely(address(spotter));
+
+        dai = new Token(18, CEILING);
+        daiJoin = new DaiJoin(address(vat), address(dai));
+        vat.rely(address(daiJoin));
+
+        vat.init(ilk);
+        vat.file("Line", 100 * CEILING * 1e27);
+        vat.file(ilk, "line", CEILING * 1e27);
+
+        jug.init(ilk);
+        uint256 ZERO_PCT = 1000000000000000000000000000;
+        jug.file(ilk, "duty", ZERO_PCT);
+
+        pip = new DSValue();
+        pip.poke(bytes32(uint256(1e27)));
+
+        spotter.file(ilk, "mat", RAY);
+        spotter.file(ilk, "pip", address(pip));
+        spotter.poke(ilk);
+
+        // adapter and manager setup
         adapter = new ManagedGemJoin(address(vat), ilk, address(gem));
+        vat.rely(address(adapter));
+
         CharterManager base = new CharterManager();
         base.setImplementation(address(new CharterManagerImp(address(vat), address(vow))));
         manager = CharterManagerImp(address(base));
@@ -254,14 +196,38 @@ contract CharterManagerTest is TestBase {
         adapter.deny(address(this));    // Only access should be through manager
     }
 
+    function cheat_get_dai(address rec, uint256 wad) public {
+        hevm.store(
+            address(dai),
+            keccak256(abi.encode(rec, uint256(3))),
+            bytes32(wad)
+        );
+        hevm.store(
+            address(dai),
+            bytes32(uint256(2)),
+            bytes32(wad)
+        );
+        hevm.store(
+            address(vat),
+            keccak256(abi.encode(address(daiJoin), uint256(5))),
+            bytes32(wad * RAY)
+        );
+    }
+
+    function cheat_uncage() public {
+        hevm.store(
+            address(vat),
+            bytes32(uint256(10)),
+            bytes32(uint256(1))
+        );
+    }
+
     function init_ilk_ungate(uint256 Nib) public {
-        vat.mockIlk(ilk, 1e27);
         manager.file(ilk, "gate", 0);
         manager.file(ilk, "Nib", Nib);
     }
 
     function init_ilk_gate(address user, uint256 nib, uint256 uline) public {
-        vat.mockIlk(ilk, 1e27);
         manager.file(ilk, "gate", 1);
         manager.file(ilk, user, "nib", nib);
         manager.file(ilk, user, "uline", uline);
@@ -370,11 +336,27 @@ contract CharterManagerTest is TestBase {
         assertEq(art, 50 * 1e18);
         assertEq(a.dai(), 49.5 * 1e45);
         assertEq(a.gems(), 0);
-        assertEq(vow.dai(), 0.5 * 1e45);
-        a.frob(-100 * 1e18, -49.5 * 1e18);
+        assertEq(vat.dai(address(vow)), 0.5 * 1e45);
+
+        // frob out some of the funds
+        a.frob(-90 * 1e18, -49.5 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 10 * 1e18);
+        assertEq(art, 0.5 * 1e18);
+        assertEq(a.dai(), 0);
+        assertEq(a.gems(), 90 * 1e18);
+
+        // force extra dai balance to cover for paid origination fee
+        cheat_get_dai(address(this), uint256(0.5 * 1e18));
+        dai.approve(address(daiJoin), 0.5 * 1e18);
+        daiJoin.join(address(a), 0.5 * 1e18);
+        assertEq(a.dai(), 0.5 * 1e45);
+
+        // repay remaining debt
+        a.frob(-10 * 1e18, -0.5 * 1e18);
         (ink, art) = a.urn();
         assertEq(ink, 0);
-        assertEq(art, 0.5 * 1e18);
+        assertEq(art, 0);
         assertEq(a.dai(), 0);
         assertEq(a.gems(), 100 * 1e18);
     }
@@ -390,7 +372,7 @@ contract CharterManagerTest is TestBase {
         assertEq(art, 50 * 1e18);
         assertEq(a.dai(), 50 * 1e45);
         assertEq(a.gems(), 0);
-        assertEq(vow.dai(), 0);
+        assertEq(vat.dai(address(vow)), 0);
         a.frob(-100 * 1e18, -50 * 1e18);
         (ink, art) = a.urn();
         assertEq(ink, 0);
@@ -410,11 +392,27 @@ contract CharterManagerTest is TestBase {
         assertEq(art, 50 * 1e18);
         assertEq(a.dai(), 49 * 1e45);
         assertEq(a.gems(), 0);
-        assertEq(vow.dai(), 1 * 1e45);
-        a.frob(-100 * 1e18, -49 * 1e18);
+        assertEq(vat.dai(address(vow)), 1 * 1e45);
+
+        // frob out some of the funds
+        a.frob(-90 * 1e18, -49 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 10 * 1e18);
+        assertEq(art, 1 * 1e18);
+        assertEq(a.dai(), 0);
+        assertEq(a.gems(), 90 * 1e18);
+
+        // force extra dai balance to cover for paid origination fee
+        cheat_get_dai(address(this), uint256(1 * 1e18));
+        dai.approve(address(daiJoin), 1 * 1e18);
+        daiJoin.join(address(a), 1 * 1e18);
+        assertEq(a.dai(), 1 * 1e45);
+
+        // repay remaining debt
+        a.frob(-10 * 1e18, -1 * 1e18);
         (ink, art) = a.urn();
         assertEq(ink, 0);
-        assertEq(art, 1 * 1e18);
+        assertEq(art, 0);
         assertEq(a.dai(), 0);
         assertEq(a.gems(), 100 * 1e18);
     }
@@ -581,8 +579,11 @@ contract CharterManagerTest is TestBase {
 
         // Can now interact directly with the vat to unencumber the collateral.
 
-        // frobDirect used as shortcut instead of end.free which would the grab ink after vat.cage.
+        // frobDirect used as shortcut instead of end.free which would grab the ink after vat.cage.
+        cheat_uncage();
         a.frobDirect(address(a), address(a), address(a), -100 * 1e18, -50 * 1e18);
+        vat.cage();
+
         assertEq(vat.gem(ilk, address(a)), 100 * 1e18);
         (ink, art) = vat.urns(ilk, address(a));
         assertEq(ink, 0);

@@ -60,11 +60,17 @@ contract Token {
     function mint(address dst, uint256 wad) public returns (uint) {
         balanceOf[dst] += wad;
     }
+    function burn(address dst, uint256 wad) public returns (uint) {
+        balanceOf[dst] -= wad;
+    }
     function approve(address usr, uint256 wad) public returns (bool) {
         allowance[msg.sender][usr] = wad;
     }
     function mint(uint256 wad) public returns (uint) {
         mint(msg.sender, wad);
+    }
+    function burn(uint256 wad) public returns (uint) {
+        burn(msg.sender, wad);
     }
 }
 
