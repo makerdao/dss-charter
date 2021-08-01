@@ -174,8 +174,8 @@ contract CharterManagerTest is TestBase {
         vat.file(ilk, "line", CEILING * 1e27);
 
         jug.init(ilk);
-        uint256 ZERO_PCT = 1000000000000000000000000000;
-        jug.file(ilk, "duty", ZERO_PCT);
+        uint256 TWO_PCT = 1000000000627937192491029810;
+        jug.file(ilk, "duty", TWO_PCT);
 
         pip = new DSValue();
         pip.poke(bytes32(uint256(1e27)));
@@ -443,6 +443,42 @@ contract CharterManagerTest is TestBase {
 
         b.join(100 * 1e6);
         b.frob(100 * 1e18, 50 * 1e18);
+    }
+
+    function test_drip_withdraw() public {
+        init_ilk_ungate(10 * NIB_ONE_PCT);
+        (Usr a,) = init_user();
+
+        a.join(20 * 1e6);
+        a.frob(20 * 1e18, 20 * 1e18);
+        (uint256 ink, uint256 art) = a.urn();
+        assertEq(ink, 20 * 1e18);
+        assertEq(art, 20 * 1e18);
+        assertEq(a.dai(), 18 * 1e45);
+        assertEq(a.gems(), 0);
+        assertEq(vat.dai(address(vow)), 2 * 1e45);
+
+        hevm.warp(now + 365 days);
+        jug.drip(ilk);
+
+        // frob out some of the funds
+        a.frob(-15 * 1e18, -15 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 5 * 1e18);
+        assertEq(art, 5 * 1e18);
+        assertEq(a.gems(), 15 * 1e18);
+
+        // force extra dai balance
+        cheat_get_dai(address(this), uint256(100 * 1e18));
+        dai.approve(address(daiJoin), 100 * 1e18);
+        daiJoin.join(address(a), 100 * 1e18);
+
+        // repay remaining debt, withdraw collateral
+        a.frob(-5 * 1e18, -5 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(a.gems(), 20 * 1e18);
     }
 
     // Non-msg.sender frobs should be disallowed for now
