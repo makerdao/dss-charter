@@ -20,18 +20,10 @@ import "./TestBase.sol";
 import "src/CharterManager.sol";
 
 import {Vat} from "dss/vat.sol";
-import {Jug} from 'dss/jug.sol';
 import {Vow} from 'dss/vow.sol';
-import {Spotter} from "dss/spot.sol";
 import {DaiJoin} from 'dss/join.sol';
 import {DSValue} from 'ds-value/value.sol';
 import {ManagedGemJoin} from "dss-gem-joins/join-managed.sol";
-
-interface VatHelpersLike {
-    function urns(bytes32, address) external view returns (uint256, uint256);
-    function dai(address) external view returns (uint256);
-    function gem(bytes32, address) external view returns (uint256);
-}
 
 contract Usr {
 
@@ -62,13 +54,13 @@ contract Usr {
         return manager.proxy(address(this));
     }
     function gems() public view returns (uint256) {
-        return VatHelpersLike(address(adapter.vat())).gem(adapter.ilk(), proxy());
+        return Vat(address(adapter.vat())).gem(adapter.ilk(), proxy());
     }
     function urn() public view returns (uint256, uint256) {
-        return VatHelpersLike(address(adapter.vat())).urns(adapter.ilk(), proxy());
+        return Vat(address(adapter.vat())).urns(adapter.ilk(), proxy());
     }
     function dai() public view returns (uint256) {
-        return VatHelpersLike(address(adapter.vat())).dai(address(this));
+        return Vat(address(adapter.vat())).dai(address(this));
     }
     function allow(address usr) public {
         manager.allow(address(usr));
@@ -137,9 +129,6 @@ contract CharterManagerTest is TestBase {
     Token               dai;
     Vat                 vat;
     Vow                 vow;
-    Jug                 jug;
-    Spotter             spotter;
-    DSValue             pip;
     DaiJoin             daiJoin;
     ManagedGemJoin      adapter;
     CharterManagerImp   manager;
@@ -158,13 +147,6 @@ contract CharterManagerTest is TestBase {
         vat = new Vat();
         vow = new Vow(address(vat), address(0), address(0));
 
-        jug = new Jug(address(vat));
-        jug.file("vow", address(vow));
-        vat.rely(address(jug));
-
-        spotter = new Spotter(address(vat));
-        vat.rely(address(spotter));
-
         dai = new Token(18, CEILING);
         daiJoin = new DaiJoin(address(vat), address(dai));
         vat.rely(address(daiJoin));
@@ -172,17 +154,7 @@ contract CharterManagerTest is TestBase {
         vat.init(ilk);
         vat.file("Line", 100 * CEILING * 1e27);
         vat.file(ilk, "line", CEILING * 1e27);
-
-        jug.init(ilk);
-        uint256 TWO_PCT = 1000000000627937192491029810;
-        jug.file(ilk, "duty", TWO_PCT);
-
-        pip = new DSValue();
-        pip.poke(bytes32(uint256(1e27)));
-
-        spotter.file(ilk, "mat", RAY);
-        spotter.file(ilk, "pip", address(pip));
-        spotter.poke(ilk);
+        vat.file(ilk, "spot", 1e36);
 
         // adapter and manager setup
         adapter = new ManagedGemJoin(address(vat), ilk, address(gem));
@@ -458,8 +430,8 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 0);
         assertEq(vat.dai(address(vow)), 2 * 1e45);
 
-        hevm.warp(now + 365 days);
-        jug.drip(ilk);
+        // increase rate by 2%
+        vat.fold(ilk, address(vow), 0.02 * 1e27);
 
         // frob out some of the funds
         a.frob(-15 * 1e18, -15 * 1e18);
