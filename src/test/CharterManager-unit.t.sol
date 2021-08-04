@@ -439,6 +439,8 @@ contract CharterManagerTest is TestBase {
         assertEq(ink, 5 * 1e18);
         assertEq(art, 5 * 1e18);
         assertEq(a.gems(), 15 * 1e18);
+        // -15 * 1e18 should be taking 15.3 DAI (15 + 2%) from the current 18 DAI balance.
+        assertEq(a.dai(), 2.7 * 1e45);
 
         // force extra dai balance
         cheat_get_dai(address(this), uint256(100 * 1e18));
