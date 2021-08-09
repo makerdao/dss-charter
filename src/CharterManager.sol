@@ -19,13 +19,11 @@ pragma solidity 0.6.12;
 interface VatLike {
     function live() external view returns (uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
-    function dai(address) external view returns (uint256);
     function fork(bytes32, address, address, int256, int256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
     function flux(bytes32, address, address, uint256) external;
     function move(address, address, uint256) external;
     function hope(address) external;
-    function nope(address) external;
     function ilks(bytes32) external view returns (
         uint256 Art,  // [wad]
         uint256 rate, // [ray]
