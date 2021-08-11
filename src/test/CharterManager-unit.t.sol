@@ -161,7 +161,7 @@ contract CharterManagerTest is TestBase {
         vat.rely(address(adapter));
 
         CharterManager base = new CharterManager();
-        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow))));
+        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow), address(0))));
         manager = CharterManagerImp(address(base));
 
         adapter.rely(address(manager));

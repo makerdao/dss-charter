@@ -33,6 +33,11 @@ interface VatLike {
     );
 }
 
+interface SpotterLike {
+    function par() external returns (uint256);
+    function ilks(bytes32) external returns (address, uint256);
+}
+
 interface ManagedGemJoinLike {
     function gem() external view returns (address);
     function ilk() external view returns (bytes32);
@@ -114,10 +119,13 @@ contract CharterManagerImp {
     mapping (bytes32 => uint256)                      public gate;  // allow only permissioned vaults
     mapping (bytes32 => uint256)                      public Nib;   // fee percentage for un-permissioned vaults [wad]
     mapping (bytes32 => mapping(address => uint256))  public nib;   // fee percentage for permissioned vaults    [wad]
+    mapping (bytes32 => uint256)                      public Peace; // min CR for un-permissioned vaults         [ray]
+    mapping (bytes32 => mapping(address => uint256))  public peace; // min CR for permissioned vaults            [ray]
     mapping (bytes32 => mapping(address => uint256))  public uline; // debt ceiling for permissioned vaults      [rad]
 
     address public immutable vat;
     address public immutable vow;
+    address public immutable spotter;
 
     // --- Administration ---
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
@@ -136,7 +144,9 @@ contract CharterManagerImp {
     }
 
     // --- Math ---
+    uint256 constant RAY = 10 ** 27;
     uint256 constant WAD = 10 ** 18;
+    uint256 constant BLN = 10 **  9;
 
     function sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
@@ -147,6 +157,9 @@ contract CharterManagerImp {
     function wmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = mul(x, y) / WAD;
     }
+    function rmul(uint x, uint y) internal pure returns (uint z) {
+        z = mul(x, y) / RAY;
+    }
 
     // --- Auth ---
     modifier auth {
@@ -154,9 +167,10 @@ contract CharterManagerImp {
         _;
     }
 
-    constructor(address vat_, address vow_) public {
+    constructor(address vat_, address vow_, address spotter_) public {
         vat = vat_;
         vow = vow_;
+        spotter = spotter_;
     }
 
     event Allow(address indexed from, address indexed to);
@@ -195,33 +209,47 @@ contract CharterManagerImp {
         ManagedGemJoinLike(gemJoin).exit(urp, usr, val);
     }
 
+    function price(bytes32 ilk, uint256 spot) internal returns (uint256 cur) {
+        (, uint256 mat) = SpotterLike(spotter).ilks(ilk);
+        cur = rmul(rmul(spot, mat), SpotterLike(spotter).par()) / BLN;
+    }
+
+    function draw(bytes32 ilk, address u, address urp, address w, int256 dink, int256 dart, uint256 rate, uint256 _gate) internal {
+        uint256 dtab = mul(rate, uint256(dart)); // rad
+        uint256 _nib = (_gate == 1) ? nib[ilk][u] : Nib[ilk];
+        uint256 coin = wmul(dtab, _nib);         // rad
+
+        VatLike(vat).frob(ilk, urp, urp, urp, dink, dart);
+        VatLike(vat).move(urp, w, sub(dtab, coin));
+        VatLike(vat).move(urp, vow, coin);
+    }
+
+    function validate(bytes32 ilk, address u, address urp, uint256 rate, uint256 spot, uint _gate) internal {
+        (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
+        uint256 tab = mul(art, rate);   // wad
+
+        if (_gate == 1) {
+            require(tab <= uline[ilk][u], "CharterManager/user-line-exceeded");
+        }
+
+        uint256 cur = price(ilk, spot); // ray
+        uint256 _peace = (_gate == 1) ? peace[ilk][u] : Peace[ilk];
+        require(mul(tab, _peace) < mul(ink, cur), "CharterManager/below-peace-ratio");
+    }
+
     function frob(address gemJoin, address u, address v, address w, int256 dink, int256 dart) external allowed(u) {
         require(u == v && w == msg.sender, "CharterManager/not-matching");
         address urp = getOrCreateProxy(u);
-
         bytes32 ilk = ManagedGemJoinLike(gemJoin).ilk();
-        uint256 _gate = gate[ilk];
-        uint256 _nib = (_gate == 1) ? nib[ilk][u] : Nib[ilk];
 
-        uint256 rate;
-        if (dart > 0 && (_nib > 0 || _gate == 1)) {
-            (,rate,,,) = VatLike(vat).ilks(ilk);
-        }
-
-        if (dart > 0 && _nib > 0) {
-            uint256 dtab = mul(rate, uint256(dart)); // rad
-            uint256 coin = wmul(dtab, _nib);         // rad
-
-            VatLike(vat).frob(ilk, urp, urp, urp, dink, dart);
-            VatLike(vat).move(urp, w, sub(dtab, coin));
-            VatLike(vat).move(urp, vow, coin);
-        } else {
+        if (dart <= 0) {
             VatLike(vat).frob(ilk, urp, urp, w, dink, dart);
-        }
+        } else {
+            (, uint256 rate, uint256 spot,,) = VatLike(vat).ilks(ilk);
 
-        if (dart > 0 && _gate == 1) {
-            (, uint256 art) = VatLike(vat).urns(ilk, urp);
-            require(mul(art, rate) <= uline[ilk][u], "CharterManager/user-line-exceeded");
+            uint256 _gate = gate[ilk];
+            draw(ilk, u, urp, w, dink, dart, rate, _gate);
+            validate(ilk, u, urp, rate, spot, _gate);
         }
     }
 

@@ -152,7 +152,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         gem     = new Token(18, 10**6 * WAD);
         join    = new ManagedGemJoin(address(vat), ILK, address(gem));
         CharterManager base = new CharterManager();
-        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow))));
+        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow), address(0))));
         manager = CharterManagerImp(address(base));
         clipper = new ProxyManagerClipper(address(vat), address(spotter), address(dog), address(join), address(manager));
 
