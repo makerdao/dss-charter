@@ -133,12 +133,14 @@ contract CharterManagerImp {
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
         if (what == "gate") gate[ilk] = data;
         else if (what == "Nib") Nib[ilk] = data;
+        else if (what == "Peace") Peace[ilk] = data;
         else revert("CharterManager/file-unrecognized-param");
         emit File(ilk, what, data);
     }
     function file(bytes32 ilk, address usr, bytes32 what, uint256 data) external auth {
         if (what == "uline") uline[ilk][usr] = data;
         else if (what == "nib") nib[ilk][usr] = data;
+        else if (what == "peace") peace[ilk][usr] = data;
         else revert("CharterManager/file-unrecognized-param");
         emit File(ilk, usr, what, data);
     }
