@@ -16,4 +16,6 @@ As in CropJoin, liquidations can only be done by users who created a proxy throu
 - `gate` : whether the ilk is permissioned.
 - `Nib` : per ilk relative fee (for unpermissioned ilks).
 - `nib` : per user relative fee for a specific ilk (for permissioned ilks).
+- `Peace`: minimal collateralization ratio (for vaults in unpermissioned ilks).
+- `peace`: per user minimal collateralization ratio (for vaults in permissioned ilks).
 - `uline` : per user debt ceiling for a specific ilk (for permissioned ilks).
