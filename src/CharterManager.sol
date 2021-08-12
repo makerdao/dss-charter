@@ -148,7 +148,6 @@ contract CharterManagerImp {
     // --- Math ---
     uint256 constant RAY = 10 ** 27;
     uint256 constant WAD = 10 ** 18;
-    uint256 constant BLN = 10 **  9;
 
     function sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
@@ -159,8 +158,11 @@ contract CharterManagerImp {
     function wmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = mul(x, y) / WAD;
     }
-    function rmul(uint x, uint y) internal pure returns (uint z) {
+    function rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = mul(x, y) / RAY;
+    }
+    function rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = mul(x, RAY) / y;
     }
 
     // --- Auth ---
@@ -213,12 +215,12 @@ contract CharterManagerImp {
 
     function price(bytes32 ilk, uint256 spot) internal returns (uint256 cur) {
         (, uint256 mat) = SpotterLike(spotter).ilks(ilk);
-        cur = rmul(rmul(spot, mat), SpotterLike(spotter).par()) / BLN;
+        cur = rmul(rmul(spot, mat), SpotterLike(spotter).par());
     }
 
     function draw(bytes32 ilk, address u, address urp, address w, int256 dink, int256 dart, uint256 rate, uint256 _gate) internal {
-        uint256 dtab = mul(rate, uint256(dart)); // rad
         uint256 _nib = (_gate == 1) ? nib[ilk][u] : Nib[ilk];
+        uint256 dtab = mul(rate, uint256(dart)); // rad
         uint256 coin = wmul(dtab, _nib);         // rad
 
         VatLike(vat).frob(ilk, urp, urp, urp, dink, dart);
@@ -228,15 +230,17 @@ contract CharterManagerImp {
 
     function validate(bytes32 ilk, address u, address urp, uint256 rate, uint256 spot, uint _gate) internal {
         (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
-        uint256 tab = mul(art, rate);   // wad
+        uint256 tab = mul(art, rate); // wad
 
         if (_gate == 1) {
             require(tab <= uline[ilk][u], "CharterManager/user-line-exceeded");
         }
 
-        uint256 cur = price(ilk, spot); // ray
         uint256 _peace = (_gate == 1) ? peace[ilk][u] : Peace[ilk];
-        require(mul(tab, _peace) < mul(ink, cur), "CharterManager/below-peace-ratio");
+        if (_peace > 0) {
+            uint256 cur = price(ilk, spot); // ray
+            require(tab <= mul(ink, rdiv(cur, _peace)), "CharterManager/below-peace-ratio");
+        }
     }
 
     function frob(address gemJoin, address u, address v, address w, int256 dink, int256 dart) external allowed(u) {
@@ -248,8 +252,8 @@ contract CharterManagerImp {
             VatLike(vat).frob(ilk, urp, urp, w, dink, dart);
         } else {
             (, uint256 rate, uint256 spot,,) = VatLike(vat).ilks(ilk);
-
             uint256 _gate = gate[ilk];
+
             draw(ilk, u, urp, w, dink, dart, rate, _gate);
             validate(ilk, u, urp, rate, spot, _gate);
         }
