@@ -65,16 +65,12 @@ rule file_ilk(bytes32 ilk, bytes32 what, uint256 data) {
     env e;
     file(e, ilk, what, data);
 
-    if (what == 0x6761746500000000000000000000000000000000000000000000000000000000) {
-        assert(gate(ilk) == data,    "file did not set gate as expected");
-        assert(Nib(ilk)  == pre_Nib, "file changed Nib unexpectedly");
-    } else if (what == 0x4e69620000000000000000000000000000000000000000000000000000000000) {
-        assert(gate(ilk) == pre_gate, "file changed gate unexpectedly");
-        assert(Nib(ilk)  == data,     "file did not set Nib as expected");
-    }
-
-    // work around "last statement of a rule is not an assert command (but must be)" error
-    assert(!lastReverted);
+    assert(what == 0x6761746500000000000000000000000000000000000000000000000000000000
+               => gate(ilk) == data && Nib(ilk) == pre_Nib,
+           "file did not set gate as expected");
+    assert(what == 0x4e69620000000000000000000000000000000000000000000000000000000000
+               => gate(ilk) == pre_gate && Nib(ilk) == data,
+           "file did not set Nib as expected");
 }
 
 rule file_ilk_revert(bytes32 ilk, bytes32 what, uint256 data) {
@@ -90,9 +86,9 @@ rule file_ilk_revert(bytes32 ilk, bytes32 what, uint256 data) {
     bool revert2 = ward != 1;
     assert(revert2 => lastReverted, "file did not revert for unauthorized msg.sender");
 
-    bool revert3 = what != 0x6761746500000000000000000000000000000000000000000000000000000000  // "gate"
+    bool revert3 = what != 0x6761746500000000000000000000000000000000000000000000000000000000   // "gate"
                    &&
-                   what != 0x4e69620000000000000000000000000000000000000000000000000000000000; // "Nib"
+                   what != 0x4e69620000000000000000000000000000000000000000000000000000000000;  // "Nib"
     assert(revert3 => lastReverted, "file did not revert for unrecognized what");
 
     assert(lastReverted => revert1 || revert2 || revert3,
@@ -106,14 +102,10 @@ rule file_ilk_usr(bytes32 ilk, address usr, bytes32 what, uint256 data) {
     env e;
     file(e, ilk, usr, what, data);
 
-    if (what == 0x756c696e65000000000000000000000000000000000000000000000000000001) {
-        assert(uline(ilk, usr) == data,    "file did not set uline as expected");
-        assert(nib(ilk, usr)   == pre_nib, "file changed nib unexpectedly");
-    } else if (what == 0x6e69620000000000000000000000000000000000000000000000000000000000) {
-        assert(uline(ilk, usr) == pre_uline, "file changed uline unexpectedly");
-        assert(nib(ilk, usr)   == data,      "file did not set nib as expected");
-    }
-
-    // work around "last statement of a rule is not an assert command (but must be)" error
-    assert(!lastReverted);
+    assert(what == 0x756c696e65000000000000000000000000000000000000000000000000000000  // "uline"
+               => uline(ilk, usr) == data && nib(ilk, usr) == pre_nib, 
+           "file did not set uline as expected");
+    assert(what == 0x6e69620000000000000000000000000000000000000000000000000000000000  // "nib"
+               => uline(ilk, usr) == pre_uline && nib(ilk, usr) == data,
+           "file did not set nib as expected");
 }
