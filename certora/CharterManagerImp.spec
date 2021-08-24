@@ -163,3 +163,11 @@ rule disallow_revert(address usr) {
 
     assert(lastReverted => revert1, "disallow_revert does not cover all revert conditions");
 }
+
+// TODO: figure out how to verify proxy creation case
+rule getOrCreateProxy_proxy_already_exists(address usr) {
+    address proxyAddr = proxy(usr);
+    require(proxyAddr != 0);
+    getOrCreateProxy(usr);
+    assert(proxyAddr == proxy(usr));
+}
