@@ -1,6 +1,6 @@
 // CharterManagerImp.spec
 
-// certoraRun src/CharterManager.sol:CharterManagerImp --verify CharterManagerImp:certora/CharterManagerImp.spec --rule_sanity
+// certoraRun src/CharterManager.sol:CharterManagerImp certora/DSToken.sol certora/Vat.sol certora/ManagedGemJoin.sol --link CharterManagerImp:vat=Vat ManagedGemJoin:gem=DSToken ManagedGemJoin:vat=Vat --verify CharterManagerImp:certora/CharterManagerImp.spec --rule_sanity
 
 using DSToken as token
 using Vat as theVat
