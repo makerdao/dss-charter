@@ -57,3 +57,44 @@ rule envfree_funcs_no_unexpected_reverts(address addr1, address addr2, address a
     onVatFlux@withrevert(addr1, addr2, addr3, wad);
     assert(!lastReverted, "onVatFlux has an unexpected revert condition"); 
 }
+
+rule file_ilk(bytes32 ilk, bytes32 what, uint256 data) {
+    uint256 pre_gate = gate(ilk);
+    uint256 pre_Nib = Nib(ilk);
+
+    env e;
+    file(e, ilk, what, data);
+
+    if (what == 0x6761746500000000000000000000000000000000000000000000000000000000) {
+        assert(gate(ilk) == data,    "file did not set gate as expected");
+        assert(Nib(ilk)  == pre_Nib, "file changed Nib unexpectedly");
+    } else if (what == 0x4e69620000000000000000000000000000000000000000000000000000000000) {
+        assert(gate(ilk) == pre_gate, "file changed gate unexpectedly");
+        assert(Nib(ilk)  == data,     "file did not set Nib as expected");
+    }
+
+    // work around "last statement of a rule is not an assert command (but must be)" error
+    assert(!lastReverted);
+}
+
+rule file_ilk_revert(bytes32 ilk, bytes32 what, uint256 data) {
+    env e;
+
+    uint256 ward = wards(e.msg.sender);
+
+    file@withrevert(e, ilk, what, data);
+
+    bool revert1 = e.msg.value > 0;
+    assert(revert1 => lastReverted, "file did not revert when sent ETH");
+
+    bool revert2 = ward != 1;
+    assert(revert2 => lastReverted, "file did not revert for unauthorized msg.sender");
+
+    bool revert3 = what != 0x6761746500000000000000000000000000000000000000000000000000000000  // "gate"
+                   &&
+                   what != 0x4e69620000000000000000000000000000000000000000000000000000000000; // "Nib"
+    assert(revert3 => lastReverted, "file did not revert for unrecognized what");
+
+    assert(lastReverted => revert1 || revert2 || revert3,
+           "file_ilk_revert does not cover all revert conditions");
+}
