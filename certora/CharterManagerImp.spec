@@ -109,3 +109,25 @@ rule file_ilk_usr(bytes32 ilk, address usr, bytes32 what, uint256 data) {
                => uline(ilk, usr) == pre_uline && nib(ilk, usr) == data,
            "file did not set nib as expected");
 }
+
+rule file_ilk_usr_revert(bytes32 ilk, address usr, bytes32 what, uint256 data) {
+    env e;
+
+    uint256 ward = wards(e.msg.sender);
+
+    file@withrevert(e, ilk, usr, what, data);
+
+    bool revert1 = e.msg.value > 0;
+    assert(revert1 => lastReverted, "file did not revert when sent ETH");
+
+    bool revert2 = ward != 1;
+    assert(revert2 => lastReverted, "file did not revert for unauthorized msg.sender");
+
+    bool revert3 = what != 0x756c696e65000000000000000000000000000000000000000000000000000000   // "uline"
+                   &&
+                   what != 0x6e69620000000000000000000000000000000000000000000000000000000000;  // "nib"
+    assert(revert3 => lastReverted, "file did not revert for unrecognized what");
+
+    assert(lastReverted => revert1 || revert2 || revert3,
+           "file_ilk_usr_revert does not cover all revert conditions");
+}
