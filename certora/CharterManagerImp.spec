@@ -131,3 +131,35 @@ rule file_ilk_usr_revert(bytes32 ilk, address usr, bytes32 what, uint256 data) {
     assert(lastReverted => revert1 || revert2 || revert3,
            "file_ilk_usr_revert does not cover all revert conditions");
 }
+
+rule allow(address usr) {
+    env e;
+    allow(e, usr);
+    assert(can(e.msg.sender, usr) == 1, "allow did not set can as expected");
+}
+
+rule allow_revert(address usr) {
+    env e;
+    allow@withrevert(e, usr);
+
+    bool revert1 = e.msg.value > 0;
+    assert(revert1 => lastReverted, "allow did not revert when sent ETH");
+
+    assert(lastReverted => revert1, "allow_revert does not cover all revert conditions");
+}
+
+rule disallow(address usr) {
+    env e;
+    disallow(e, usr);
+    assert(can(e.msg.sender, usr) == 0, "disallow did not set can as expected");
+}
+
+rule disallow_revert(address usr) {
+    env e;
+    disallow@withrevert(e, usr);
+
+    bool revert1 = e.msg.value > 0;
+    assert(revert1 => lastReverted, "disallow did not revert when sent ETH");
+
+    assert(lastReverted => revert1, "disallow_revert does not cover all revert conditions");
+}
