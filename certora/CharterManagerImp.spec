@@ -2,6 +2,10 @@
 
 // certoraRun src/CharterManager.sol:CharterManagerImp --verify CharterManagerImp:certora/CharterManagerImp.spec --rule_sanity
 
+using DSToken as token
+using Vat as theVat
+using ManagedGemJoin as managedGemJoin
+
 methods {
     wards(address) returns (uint256) envfree
     proxy(address) returns (address) envfree
@@ -15,6 +19,10 @@ methods {
     getOrCreateProxy(address) returns (address) envfree
     onLiquidation(address, address, uint256) envfree
     onVatFlux(address, address, address, uint256) envfree
+    theVat.gem(bytes32, address) returns (uint256) envfree
+    managedGemJoin.vat() returns (address) envfree
+    managedGemJoin.gem() returns (address) envfree
+    managedGemJoin.ilk() returns (bytes32) envfree
 }
 
 // Confirm no unexpected reversion cases for envfree functions.
@@ -169,5 +177,24 @@ rule getOrCreateProxy_proxy_already_exists(address usr) {
     address proxyAddr = proxy(usr);
     require(proxyAddr != 0);
     getOrCreateProxy(usr);
-    assert(proxyAddr == proxy(usr));
+    assert(proxyAddr == proxy(usr), "getOrCreatProxy changed the user's proxy unexpectedly");
+}
+
+rule join_proxy_already_exists(address gemJoin, address usr, uint256 val) {
+    require(vat() == theVat);
+    require(managedGemJoin.vat() == theVat);
+    require(managedGemJoin.gem() == token);
+    require(gemJoin == managedGemJoin);
+
+    address proxyAddr = proxy(usr);
+    require(proxyAddr != 0);
+
+    bytes32 ilk = managedGemJoin.ilk();
+    uint256 pre_gemBal = theVat.gem(ilk, proxyAddr);
+
+    env e;
+    join(e, gemJoin, usr, val);
+
+    uint256 post_gemBal = theVat.gem(ilk, proxyAddr);
+    assert(post_gemBal == pre_gemBal + val, "join did not add collateral as expected");
 }
