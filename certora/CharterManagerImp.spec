@@ -98,3 +98,22 @@ rule file_ilk_revert(bytes32 ilk, bytes32 what, uint256 data) {
     assert(lastReverted => revert1 || revert2 || revert3,
            "file_ilk_revert does not cover all revert conditions");
 }
+
+rule file_ilk_usr(bytes32 ilk, address usr, bytes32 what, uint256 data) {
+    uint256 pre_uline = uline(ilk, usr);
+    uint256 pre_nib = nib(ilk, usr);
+
+    env e;
+    file(e, ilk, usr, what, data);
+
+    if (what == 0x756c696e65000000000000000000000000000000000000000000000000000001) {
+        assert(uline(ilk, usr) == data,    "file did not set uline as expected");
+        assert(nib(ilk, usr)   == pre_nib, "file changed nib unexpectedly");
+    } else if (what == 0x6e69620000000000000000000000000000000000000000000000000000000000) {
+        assert(uline(ilk, usr) == pre_uline, "file changed uline unexpectedly");
+        assert(nib(ilk, usr)   == data,      "file did not set nib as expected");
+    }
+
+    // work around "last statement of a rule is not an assert command (but must be)" error
+    assert(!lastReverted);
+}
