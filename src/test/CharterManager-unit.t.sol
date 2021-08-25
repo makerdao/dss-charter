@@ -383,44 +383,6 @@ contract CharterManagerTest is TestBase {
         a.frob(-1 * 1e18, 0);
     }
 
-    function test_frob_ungate_different_par_above_Peace() public {
-
-        // par is value of dai in the reference asset (e.g. $1 per dai)
-        // oracle_price is in $, spot_price is in dai, so neglecting lr (mat==1):
-        // par = oracle_price / spot_price
-        // assuming spot_price stays the same (1 in these tests), lower par means oracle price was lower =>
-        // collateral is worth less => can draw less debt
-        spotter.file("par", 0.5 * 1e27);
-
-
-        init_ilk_ungate(0, 3 * RAY);
-        (Usr a,) = init_user();
-        a.join(100 * 1e6);
-        // (mat = 1.5, par = 0.5, spot = 1) => price = 0.75, 100 col is worth 75 dai => can draw up to 25 dai.
-        a.frob(100 * 1e18, 25 * 1e18);
-        (uint256 ink, uint256 art) = a.urn();
-        assertEq(ink, 100 * 1e18);
-        assertEq(art, 25 * 1e18);
-        assertEq(a.dai(), 25 * 1e45);
-        assertEq(a.gems(), 0);
-        a.frob(-100 * 1e18, -25 * 1e18);
-        (ink, art) = a.urn();
-        assertEq(ink, 0);
-        assertEq(art, 0);
-        assertEq(a.dai(), 0);
-        assertEq(a.gems(), 100 * 1e18);
-    }
-
-    function testFail_frob_ungate_different_par_below_Peace() public {
-        spotter.file("par", 0.5 * 1e27);
-
-        init_ilk_ungate(0, 3 * RAY);
-        (Usr a,) = init_user();
-        a.join(100 * 1e6);
-        // (mat = 1.5, par = 0.5, spot = 1) => price = 0.75, 100 col is worth 75 dai => can draw up to 25 dai.
-        a.frob(100 * 1e18, 26 * 1e18);
-    }
-
     function test_frob_gate() public {
         (Usr a,) = init_user();
         init_ilk_gate(address(a), 0, 0, 50 * 1e45);

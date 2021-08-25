@@ -34,7 +34,6 @@ interface VatLike {
 }
 
 interface SpotterLike {
-    function par() external returns (uint256);
     function ilks(bytes32) external returns (address, uint256);
 }
 
@@ -213,11 +212,6 @@ contract CharterManagerImp {
         ManagedGemJoinLike(gemJoin).exit(urp, usr, val);
     }
 
-    function price(bytes32 ilk, uint256 spot) internal returns (uint256 cur) {
-        (, uint256 mat) = SpotterLike(spotter).ilks(ilk);
-        cur = rmul(rmul(spot, mat), SpotterLike(spotter).par());
-    }
-
     function draw(bytes32 ilk, address u, address urp, address w, int256 dink, int256 dart, uint256 rate, uint256 _gate) internal {
         uint256 _nib = (_gate == 1) ? nib[ilk][u] : Nib[ilk];
         uint256 dtab = mul(rate, uint256(dart)); // rad
@@ -240,7 +234,9 @@ contract CharterManagerImp {
             // urn is more risky than before
             uint256 _peace = (_gate == 1) ? peace[ilk][u] : Peace[ilk];
             if (_peace > 0) {
-                uint256 cur = price(ilk, spot); // ray
+                (, uint256 mat) = SpotterLike(spotter).ilks(ilk);
+                // reconstruct price, avoid un-applying par so it's accounted for when comparing to tab
+                uint256 cur = rmul(spot, mat); // ray
                 require(tab <= mul(ink, rdiv(cur, _peace)), "CharterManager/below-peace-ratio");
             }
         }
