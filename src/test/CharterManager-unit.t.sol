@@ -367,6 +367,22 @@ contract CharterManagerTest is TestBase {
         a.frob(100 * 1e18, 51 * 1e18);
     }
 
+    function testFail_frob_ungate_withdraw_below_Peace() public {
+        init_ilk_ungate(0, 3 * RAY);
+        (Usr a,) = init_user();
+        a.join(100 * 1e6);
+        // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
+        a.frob(100 * 1e18, 50 * 1e18);
+        (uint256 ink, uint256 art) = a.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        assertEq(a.dai(), 50 * 1e45);
+        assertEq(a.gems(), 0);
+
+        // should not be able to withdraw collateral and go below min cr
+        a.frob(-1 * 1e18, 0);
+    }
+
     function test_frob_ungate_different_par_above_Peace() public {
 
         // par is value of dai in the reference asset (e.g. $1 per dai)
@@ -489,6 +505,23 @@ contract CharterManagerTest is TestBase {
         a.join(100 * 1e6);
         // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 75 dai.
         a.frob(100 * 1e18, 76 * 1e18);
+    }
+
+    function testFail_frob_gate_withdraw_below_peace() public {
+        (Usr a,) = init_user();
+        init_ilk_gate(address(a), 0, 2 * RAY, 100 * 1e45);
+
+        a.join(100 * 1e6);
+        // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 75 dai.
+        a.frob(100 * 1e18, 75 * 1e18);
+        (uint256 ink, uint256 art) = a.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 75 * 1e18);
+        assertEq(a.dai(), 75 * 1e45);
+        assertEq(a.gems(), 0);
+
+        // should not be able to withdraw collateral and go below min cr
+        a.frob(-1 * 1e18, 0);
     }
 
     function testFail_frob_undelegated_manager() public {

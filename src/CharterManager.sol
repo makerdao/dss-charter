@@ -228,18 +228,21 @@ contract CharterManagerImp {
         VatLike(vat).move(urp, vow, coin);
     }
 
-    function validate(bytes32 ilk, address u, address urp, uint256 rate, uint256 spot, uint _gate) internal {
+    function validate(bytes32 ilk, address u, address urp, uint256 rate, uint256 spot, int256 dink, int256 dart, uint _gate) internal {
         (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
         uint256 tab = mul(art, rate); // wad
 
-        if (_gate == 1) {
+        if (dart > 0 && _gate == 1) {
             require(tab <= uline[ilk][u], "CharterManager/user-line-exceeded");
         }
 
-        uint256 _peace = (_gate == 1) ? peace[ilk][u] : Peace[ilk];
-        if (_peace > 0) {
-            uint256 cur = price(ilk, spot); // ray
-            require(tab <= mul(ink, rdiv(cur, _peace)), "CharterManager/below-peace-ratio");
+        if (dart > 0 || dink < 0) {
+            // urn is more risky than before
+            uint256 _peace = (_gate == 1) ? peace[ilk][u] : Peace[ilk];
+            if (_peace > 0) {
+                uint256 cur = price(ilk, spot); // ray
+                require(tab <= mul(ink, rdiv(cur, _peace)), "CharterManager/below-peace-ratio");
+            }
         }
     }
 
@@ -247,16 +250,15 @@ contract CharterManagerImp {
         require(u == v && w == msg.sender, "CharterManager/not-matching");
         address urp = getOrCreateProxy(u);
         bytes32 ilk = ManagedGemJoinLike(gemJoin).ilk();
+        (, uint256 rate, uint256 spot,,) = VatLike(vat).ilks(ilk);
+        uint256 _gate = gate[ilk];
 
         if (dart <= 0) {
             VatLike(vat).frob(ilk, urp, urp, w, dink, dart);
         } else {
-            (, uint256 rate, uint256 spot,,) = VatLike(vat).ilks(ilk);
-            uint256 _gate = gate[ilk];
-
             draw(ilk, u, urp, w, dink, dart, rate, _gate);
-            validate(ilk, u, urp, rate, spot, _gate);
         }
+        validate(ilk, u, urp, rate, spot, dink, dart, _gate);
     }
 
     function flux(address gemJoin, address src, address dst, uint256 wad) external allowed(src) {
