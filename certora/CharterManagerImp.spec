@@ -19,10 +19,23 @@ methods {
     getOrCreateProxy(address) returns (address) envfree
     onLiquidation(address, address, uint256) envfree
     onVatFlux(address, address, address, uint256) envfree
+
+    // Vat methods
     theVat.gem(bytes32, address) returns (uint256) envfree
+    gem(bytes32, address) => DISPATCHER(true)
+
+    // ManagedGemJoin methods
     managedGemJoin.vat() returns (address) envfree
     managedGemJoin.gem() returns (address) envfree
+    managedGemJoin.dec() returns (uint256) envfree
+    gem() => DISPATCHER(true)
     managedGemJoin.ilk() returns (bytes32) envfree
+    join(address, uint256) => DISPATCHER(true)
+
+    // DSToken methods
+    token.decimals() returns (uint256) envfree
+    transferFrom(address, address, uint256) => DISPATCHER(true)
+    approve(address, uint256) => DISPATCHER(true)
 }
 
 // Confirm no unexpected reversion cases for envfree functions.
@@ -182,8 +195,10 @@ rule getOrCreateProxy_proxy_already_exists(address usr) {
 
 rule join_proxy_already_exists(address gemJoin, address usr, uint256 val) {
     require(vat() == theVat);
+    require(token.decimals() == 18);
     require(managedGemJoin.vat() == theVat);
     require(managedGemJoin.gem() == token);
+    require(managedGemJoin.dec() == token.decimals());
     require(gemJoin == managedGemJoin);
 
     address proxyAddr = proxy(usr);
