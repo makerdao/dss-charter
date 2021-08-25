@@ -222,7 +222,7 @@ contract CharterManagerImp {
         VatLike(vat).move(urp, vow, coin);
     }
 
-    function validate(bytes32 ilk, address u, address urp, uint256 rate, uint256 spot, int256 dink, int256 dart, uint _gate) internal {
+    function validate(bytes32 ilk, address u, address urp, uint256 rate, uint256 spot, int256 dink, int256 dart, uint256 _gate) internal {
         (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
         uint256 tab = mul(art, rate); // rad
 
