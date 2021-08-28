@@ -21,6 +21,10 @@ methods {
     onVatFlux(address, address, address, uint256) envfree
 
     // Vat methods
+    theVat.dai(address) returns (uint256) envfree
+    dai(address) => DISPATCHER(true)
+    theVat.ilks(bytes32) returns (uint256, uint256, uint256, uint256, uint256) envfree
+    ilks(bytes32) => DISPATCHER(true)
     theVat.gem(bytes32, address) returns (uint256) envfree
     gem(bytes32, address) => DISPATCHER(true)
 
@@ -30,6 +34,7 @@ methods {
     managedGemJoin.dec() returns (uint256) envfree
     gem() => DISPATCHER(true)
     managedGemJoin.ilk() returns (bytes32) envfree
+    ilk() => DISPATCHER(true)
     join(address, uint256) => DISPATCHER(true)
 
     // DSToken methods
@@ -193,6 +198,7 @@ rule getOrCreateProxy_proxy_already_exists(address usr) {
     assert(proxyAddr == proxy(usr), "getOrCreatProxy changed the user's proxy unexpectedly");
 }
 
+// broken due to overapproximation of 10^k
 rule join_proxy_already_exists(address gemJoin, address usr, uint256 val) {
     require(vat() == theVat);
     require(token.decimals() == 18);
@@ -212,4 +218,48 @@ rule join_proxy_already_exists(address gemJoin, address usr, uint256 val) {
 
     uint256 post_gemBal = theVat.gem(ilk, proxyAddr);
     assert(post_gemBal == pre_gemBal + val, "join did not add collateral as expected");
+}
+
+// TODO: exit spec, skipping for now b/c probably affected by same bug as join spec
+
+rule frob_proxy_already_exists_w_not_vow_or_proxy(address u, address v, address w, int256 dink, int256 dart) {
+    require(vat() == theVat);
+    require(token.decimals() == 18);
+    require(managedGemJoin.vat() == theVat);
+    require(managedGemJoin.gem() == token);
+    require(managedGemJoin.dec() == token.decimals());
+
+    address proxyAddr = proxy(u);
+    require(proxyAddr != 0);
+    require(proxyAddr != w);
+    
+    bytes32 ilk = managedGemJoin.ilk();
+    uint256 _gate = gate(ilk);
+    uint256 _nib = _gate == 1 ? nib(ilk, u) : Nib(ilk);
+
+    address _vow = vow();
+    require(_vow != w);
+
+    uint256 preVowDai = theVat.dai(_vow);
+    uint256 preWDai = theVat.dai(w);
+    uint256 preProxyDai = theVat.dai(proxyAddr);
+    uint256 preProxyGem = theVat.gem(ilk, proxyAddr);
+
+    uint256 util1; uint256 util2; uint256 util3; uint256 util4;
+    uint256 rate;
+    util1, rate, util2, util3, util4 = theVat.ilks(ilk);
+    require(rate >= 10^27);  // satisfied in real contracts, and out-of-scope here anyway
+
+    env e;
+    frob(e, managedGemJoin, u, v, w, dink, dart);
+
+    // dai assertions are conditional on whether any origination fee applies
+    mathint dtab = rate * to_mathint(dart);
+    mathint coin = (dart > 0 && _nib > 0) ? dtab * _nib / 10^18 : 0;
+    assert(theVat.dai(_vow) == preVowDai + coin, "origination fee not sent to the Vow");
+    assert(theVat.dai(w) == preWDai + dtab - coin, "dai drawn not sent to destination");
+    assert(theVat.dai(proxyAddr) == preProxyDai, "proxy dai changed unexpectedly");
+
+    // gem assertions    
+    assert(theVat.gem(ilk, proxyAddr) == preProxyGem - to_mathint(dink), "proxy gem not modified as expected");    
 }
