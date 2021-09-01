@@ -236,8 +236,8 @@ contract CharterManagerImp {
             if (_peace > 0) {
                 (, uint256 mat) = SpotterLike(spotter).ilks(ilk);
                 // reconstruct price, avoid un-applying par so it's accounted for when comparing to tab
-                uint256 cur = rmul(spot, mat); // ray
-                require(tab <= mul(ink, rdiv(cur, _peace)), "CharterManager/below-peace-ratio");
+                uint256 peaceSpot = rdiv(rmul(spot, mat), _peace); // ray
+                require(tab <= mul(ink, peaceSpot), "CharterManager/below-peace-ratio");
             }
         }
     }
