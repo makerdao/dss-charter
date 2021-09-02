@@ -222,7 +222,7 @@ contract CharterManagerImp {
         VatLike(vat).move(urp, vow, coin);
     }
 
-    function validate(bytes32 ilk, address u, address urp, uint256 rate, uint256 spot, int256 dink, int256 dart, uint256 _gate) internal {
+    function validate(bytes32 ilk, address u, address urp, int256 dink, int256 dart, uint256 rate, uint256 spot, uint256 _gate) internal {
         (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
         uint256 tab = mul(art, rate); // rad
 
@@ -231,7 +231,7 @@ contract CharterManagerImp {
         }
 
         if (dart > 0 || dink < 0) {
-            // urn is more risky than before
+            // urp is more risky than before
             uint256 _peace = (_gate == 1) ? peace[ilk][u] : Peace[ilk];
             if (_peace > 0) {
                 (, uint256 mat) = SpotterLike(spotter).ilks(ilk);
@@ -254,7 +254,7 @@ contract CharterManagerImp {
         } else {
             draw(ilk, u, urp, w, dink, dart, rate, _gate);
         }
-        validate(ilk, u, urp, rate, spot, dink, dart, _gate);
+        validate(ilk, u, urp, dink, dart, rate, spot, _gate);
     }
 
     function flux(address gemJoin, address src, address dst, uint256 wad) external allowed(src) {
