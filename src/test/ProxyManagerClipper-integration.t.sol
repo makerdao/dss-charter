@@ -18,7 +18,7 @@ pragma solidity 0.6.12;
 import "./TestBase.sol";
 import {ManagedGemJoin} from "lib/dss-gem-joins/src/join-managed.sol";
 import {CharterManager,CharterManagerImp} from "src/CharterManager.sol";
-import {ProxyManagerClipper} from "lib/dss-crop-join/src/ProxyManagerClipper.sol";
+import {ProxyManagerClipper} from "lib/proxy-manager-clipper/src/ProxyManagerClipper.sol";
 import {Usr} from './CharterManager-unit.t.sol';
 
 interface VatLike {
