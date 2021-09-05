@@ -231,7 +231,7 @@ contract CharterManagerImp {
         }
 
         if (dart > 0 || dink < 0) {
-            // urp is more risky than before
+            // vault is more risky than before
             uint256 _peace = (_gate == 1) ? peace[ilk][u] : Peace[ilk];
             if (_peace > 0) {
                 (, uint256 mat) = SpotterLike(spotter).ilks(ilk);
