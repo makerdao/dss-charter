@@ -18,7 +18,7 @@ pragma solidity 0.6.12;
 import "./TestBase.sol";
 import {ManagedGemJoin} from "lib/dss-gem-joins/src/join-managed.sol";
 import {CharterManager,CharterManagerImp} from "src/CharterManager.sol";
-import {ProxyManagerClipper} from "lib/dss-crop-join/src/ProxyManagerClipper.sol";
+import {ProxyManagerClipper} from "lib/proxy-manager-clipper/src/ProxyManagerClipper.sol";
 import {Usr} from './CharterManager-unit.t.sol';
 
 interface VatLike {
@@ -152,7 +152,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         gem     = new Token(18, 10**6 * WAD);
         join    = new ManagedGemJoin(address(vat), ILK, address(gem));
         CharterManager base = new CharterManager();
-        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow))));
+        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow), address(0))));
         manager = CharterManagerImp(address(base));
         clipper = new ProxyManagerClipper(address(vat), address(spotter), address(dog), address(join), address(manager));
 
