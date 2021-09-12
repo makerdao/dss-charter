@@ -73,12 +73,12 @@ contract CharterManager {
 
     function rely(address usr) external auth {
         wards[usr] = 1;
-        emit Rely(msg.sender);
+        emit Rely(usr);
     }
 
     function deny(address usr) external auth {
         wards[usr] = 0;
-        emit Deny(msg.sender);
+        emit Deny(usr);
     }
 
     modifier auth {
