@@ -44,7 +44,7 @@ interface ManagedGemJoinLike {
     function exit(address, address, uint256) external;
 }
 
-interface TokenLike {
+interface GemLike {
     function approve(address, uint256) external;
     function transferFrom(address, address, uint256) external;
 }
@@ -201,8 +201,8 @@ contract CharterManagerImp {
     }
 
     function join(address gemJoin, address usr, uint256 val) external {
-        TokenLike(ManagedGemJoinLike(gemJoin).gem()).transferFrom(msg.sender, address(this), val);
-        TokenLike(ManagedGemJoinLike(gemJoin).gem()).approve(gemJoin, val);
+        GemLike(ManagedGemJoinLike(gemJoin).gem()).transferFrom(msg.sender, address(this), val);
+        GemLike(ManagedGemJoinLike(gemJoin).gem()).approve(gemJoin, val);
         ManagedGemJoinLike(gemJoin).join(getOrCreateProxy(usr), val);
     }
 
