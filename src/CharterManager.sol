@@ -110,9 +110,11 @@ contract CharterManager {
 }
 
 contract CharterManagerImp {
-    // --- Data ---
+    // --- Proxy Storage ---
     bytes32 slot0; // avoid collision with proxy's implementation field
     mapping (address => uint256) public wards;
+
+    // --- Implementation Storage ---
     mapping (address => address) public proxy; // UrnProxy per user
     mapping (address => mapping (address => uint256)) public can;
     mapping (bytes32 => uint256)                      public gate;  // allow only permissioned vaults
