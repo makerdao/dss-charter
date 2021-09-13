@@ -121,6 +121,7 @@ contract CharterManagerImp {
     mapping (bytes32 => uint256)                      public Peace; // min CR for un-permissioned vaults         [ray]
     mapping (bytes32 => mapping(address => uint256))  public peace; // min CR for permissioned vaults            [ray]
     mapping (bytes32 => mapping(address => uint256))  public uline; // debt ceiling for permissioned vaults      [rad]
+    mapping (bytes32 => mapping(address => uint256))  public quota; // debt to migrate without origination fees  [rad]
 
     address public immutable vat;
     address public immutable vow;
@@ -140,6 +141,7 @@ contract CharterManagerImp {
         if (what == "uline") uline[ilk][usr] = data;
         else if (what == "nib") nib[ilk][usr] = data;
         else if (what == "peace") peace[ilk][usr] = data;
+        else if (what == "quota") quota[ilk][usr] = data;
         else revert("CharterManager/file-unrecognized-param");
         emit File(ilk, usr, what, data);
     }
@@ -255,6 +257,19 @@ contract CharterManagerImp {
             draw(ilk, u, urp, w, dink, dart, rate, _gate);
         }
         validate(ilk, u, urp, dink, dart, rate, spot, _gate);
+    }
+
+    function migrate(bytes32 ilk, address u, address v, address w, int256 dink, int256 dart) external allowed(u) {
+        require(u == v && w == msg.sender, "CharterManager/not-matching");
+        address urp = getOrCreateProxy(u);
+
+        require(dart > 0, "CharterManager/not-drawing-debt");
+        (, uint256 rate, uint256 spot,,) = VatLike(vat).ilks(ilk);
+        uint256 dtab = mul(rate, uint256(dart)); // rad
+        quota[ilk][u] = sub(quota[ilk][u], dtab);
+
+        VatLike(vat).frob(ilk, urp, urp, w, dink, dart);
+        validate(ilk, u, urp, dink, dart, rate, spot, 1);
     }
 
     function flux(address gemJoin, address src, address dst, uint256 wad) external allowed(src) {
