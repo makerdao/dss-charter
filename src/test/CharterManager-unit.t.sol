@@ -438,6 +438,8 @@ contract CharterManagerTest is TestBase {
         vat.fold(oldIlk, address(vow), 0.05 * 1e27); // old rate is 1.05
         vat.fold(ilk,    address(vow), 0.02 * 1e27); // new rate is 1.02
 
+        uint256 vowSinBefore = vat.sin(address(vow));
+
         // perform privileged migration sequence
         (, uint256 oldRate,,,) = vat.ilks(oldIlk);
         (, uint256 rate,,,) = vat.ilks(ilk);
@@ -447,11 +449,13 @@ contract CharterManagerTest is TestBase {
         uint256 dec = Token(gem).decimals();
         uint256 gemAmt = ink / (10 ** (18 - dec));
 
-        vat.grab(oldIlk, address(old), address(this), address(this), -int256(ink), -int256(art));
+        // Note: In a spell obviously we'd drip both ilks before running the logic as well,
+        // so that all parties get a fair treatment regarding fees.
+        vat.grab(oldIlk, address(old), address(this), address(vow), -int256(ink), -int256(art));
         oldAdapter.exit(address(this), gemAmt);
         Token(gem).approve(address(manager), gemAmt);
         manager.join(address(adapter), address(a), gemAmt);
-        vat.grab(ilk, a.proxy(), a.proxy(), address(this), dink, dart);
+        vat.grab(ilk, a.proxy(), a.proxy(), address(vow), dink, dart);
 
         // make sure new position is as expected under the manager's ilk
         (ink, art) = vat.urns(ilk, a.proxy());
@@ -460,9 +464,12 @@ contract CharterManagerTest is TestBase {
         assertEq(a.dai(), 0);
         assertEq(a.gems(), 0);
 
-        // due to precision imperfection sin and vice are not zeroed back, but are negligible
-        assert(vat.sin(address(this)) < 1e30);
+        // due to precision imperfection vice is not zeroed back, but diff is negligible
+        assert((vat.sin(address(vow)) - vowSinBefore) < 1e30);
         assert(vat.vice() < 1e30);
+
+        // no sin is brought upon any other address than the vow
+        assertEq(vat.sin(address(this)), 0);
     }
 
     function test_frob_gate_nib() public {
