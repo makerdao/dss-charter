@@ -126,9 +126,14 @@ contract CharterManagerImp {
     address public immutable vow;
     address public immutable spotter;
 
-    // --- Administration ---
+    // --- Events ---
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
     event File(bytes32 indexed ilk, address indexed usr, bytes32 indexed what, uint256 data);
+    event Allow(address indexed from, address indexed to);
+    event Disallow(address indexed from, address indexed to);
+    event NewProxy(address indexed usr, address indexed urp);
+
+    // --- Administration ---
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
         if (what == "gate") gate[ilk] = data;
         else if (what == "Nib") Nib[ilk] = data;
@@ -176,8 +181,6 @@ contract CharterManagerImp {
         spotter = spotter_;
     }
 
-    event Allow(address indexed from, address indexed to);
-    event Disallow(address indexed from, address indexed to);
     modifier allowed(address usr) {
         require(msg.sender == usr || can[usr][msg.sender] == 1, "CharterManager/not-allowed");
         _;
@@ -191,7 +194,6 @@ contract CharterManagerImp {
         emit Disallow(msg.sender, usr);
     }
 
-    event NewProxy(address indexed usr, address indexed urp);
     function getOrCreateProxy(address usr) public returns (address urp) {
         urp = proxy[usr];
         if (urp == address(0)) {
