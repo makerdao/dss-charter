@@ -226,15 +226,16 @@ contract CharterManagerImp {
     }
 
     function validate(bytes32 ilk, address u, address urp, int256 dink, int256 dart, uint256 rate, uint256 spot, uint256 _gate) internal {
-        (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
-        uint256 tab = mul(art, rate); // rad
-
-        if (dart > 0 && _gate == 1) {
-            require(tab <= uline[ilk][u], "CharterManager/user-line-exceeded");
-        }
-
         if (dart > 0 || dink < 0) {
             // vault is more risky than before
+
+            (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
+            uint256 tab = mul(art, rate); // rad
+
+            if (dart > 0 && _gate == 1) {
+                require(tab <= uline[ilk][u], "CharterManager/user-line-exceeded");
+            }
+
             uint256 _peace = (_gate == 1) ? peace[ilk][u] : Peace[ilk];
             if (_peace > 0) {
                 (, uint256 mat) = SpotterLike(spotter).ilks(ilk);
