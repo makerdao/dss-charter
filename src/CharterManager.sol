@@ -203,8 +203,9 @@ contract CharterManagerImp {
     }
 
     function join(address gemJoin, address usr, uint256 val) external {
-        GemLike(ManagedGemJoinLike(gemJoin).gem()).transferFrom(msg.sender, address(this), val);
-        GemLike(ManagedGemJoinLike(gemJoin).gem()).approve(gemJoin, val);
+        address gem = ManagedGemJoinLike(gemJoin).gem();
+        GemLike(gem).transferFrom(msg.sender, address(this), val);
+        GemLike(gem).approve(gemJoin, val);
         ManagedGemJoinLike(gemJoin).join(getOrCreateProxy(usr), val);
     }
 
