@@ -28,10 +28,13 @@ import {ManagedGemJoin} from "dss-gem-joins/join-managed.sol";
 
 contract Usr {
 
+    bytes32 ilk;
     ManagedGemJoin adapter;
     CharterManagerImp manager;
 
-    constructor(ManagedGemJoin adapter_, CharterManagerImp manager_) public {
+    constructor(bytes32 ilk_, ManagedGemJoin adapter_, CharterManagerImp manager_) public {
+
+        ilk = ilk_;
         adapter = adapter_;
         manager = manager_;
     }
@@ -76,16 +79,16 @@ contract Usr {
         manager.disallow(address(usr));
     }
     function frob(int256 dink, int256 dart) public {
-        manager.frob(address(adapter), address(this), address(this), address(this), dink, dart);
+        manager.frob(ilk, address(this), address(this), address(this), dink, dart);
     }
     function frob(address u, address v, address w, int256 dink, int256 dart) public {
-        manager.frob(address(adapter), u, v, w, dink, dart);
+        manager.frob(ilk, u, v, w, dink, dart);
     }
     function frobDirect(address u, address v, address w, int256 dink, int256 dart) public {
         VatLike(manager.vat()).frob(adapter.ilk(), u, v, w, dink, dart);
     }
     function flux(address src, address dst, uint256 wad) public {
-        manager.flux(address(adapter), src, dst, wad);
+        manager.flux(ilk, src, dst, wad);
     }
     function fluxDirect(address src, address dst, uint256 wad) public {
         VatLike(manager.vat()).flux(adapter.ilk(), src, dst, wad);
@@ -222,8 +225,8 @@ contract CharterManagerTest is TestBase {
         return init_user(200 * 1e6);
     }
     function init_user(uint256 cash) internal returns (Usr a, Usr b) {
-        a = new Usr(adapter, manager);
-        b = new Usr(adapter, manager);
+        a = new Usr(ilk, adapter, manager);
+        b = new Usr(ilk, adapter, manager);
 
         gem.transfer(address(a), cash);
         gem.transfer(address(b), cash);

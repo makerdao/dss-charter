@@ -253,10 +253,9 @@ contract CharterManagerImp {
         }
     }
 
-    function frob(address gemJoin, address u, address v, address w, int256 dink, int256 dart) external allowed(u) {
+    function frob(bytes32 ilk, address u, address v, address w, int256 dink, int256 dart) external allowed(u) {
         require(u == v && w == msg.sender, "CharterManager/not-matching");
         address urp = getOrCreateProxy(u);
-        bytes32 ilk = ManagedGemJoinLike(gemJoin).ilk();
         (, uint256 rate, uint256 spot,,) = VatLike(vat).ilks(ilk);
         uint256 _gate = gate[ilk];
 
@@ -268,11 +267,11 @@ contract CharterManagerImp {
         validate(ilk, u, urp, dink, dart, rate, spot, _gate);
     }
 
-    function flux(address gemJoin, address src, address dst, uint256 wad) external allowed(src) {
+    function flux(bytes32 ilk, address src, address dst, uint256 wad) external allowed(src) {
         address surp = getOrCreateProxy(src);
         address durp = getOrCreateProxy(dst);
 
-        VatLike(vat).flux(ManagedGemJoinLike(gemJoin).ilk(), surp, durp, wad);
+        VatLike(vat).flux(ilk, surp, durp, wad);
     }
 
     function onLiquidation(address gemJoin, address usr, uint256 wad) external {}
