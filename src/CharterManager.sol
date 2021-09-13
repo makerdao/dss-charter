@@ -132,8 +132,8 @@ contract CharterManagerImp {
     // --- Events ---
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
     event File(bytes32 indexed ilk, address indexed usr, bytes32 indexed what, uint256 data);
-    event Allow(address indexed from, address indexed to);
-    event Disallow(address indexed from, address indexed to);
+    event Hope(address indexed from, address indexed to);
+    event Nope(address indexed from, address indexed to);
     event NewProxy(address indexed usr, address indexed urp);
 
     // --- Administration ---
@@ -188,13 +188,13 @@ contract CharterManagerImp {
         require(msg.sender == usr || can[usr][msg.sender] == 1, "CharterManager/not-allowed");
         _;
     }
-    function allow(address usr) external {
+    function hope(address usr) external {
         can[msg.sender][usr] = 1;
-        emit Allow(msg.sender, usr);
+        emit Hope(msg.sender, usr);
     }
-    function disallow(address usr) external {
+    function nope(address usr) external {
         can[msg.sender][usr] = 0;
-        emit Disallow(msg.sender, usr);
+        emit Nope(msg.sender, usr);
     }
 
     function getOrCreateProxy(address usr) public returns (address urp) {
