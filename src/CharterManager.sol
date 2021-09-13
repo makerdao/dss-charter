@@ -18,6 +18,7 @@ pragma solidity 0.6.12;
 
 interface VatLike {
     function live() external view returns (uint256);
+    function wards(address) external view returns (uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
     function fork(bytes32, address, address, int256, int256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
@@ -205,6 +206,8 @@ contract CharterManagerImp {
     }
 
     function join(address gemJoin, address usr, uint256 val) external {
+        require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
+
         address gem = ManagedGemJoinLike(gemJoin).gem();
         GemLike(gem).transferFrom(msg.sender, address(this), val);
         GemLike(gem).approve(gemJoin, val);
@@ -212,6 +215,8 @@ contract CharterManagerImp {
     }
 
     function exit(address gemJoin, address usr, uint256 val) external {
+        require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
+
         address urp = proxy[msg.sender];
         require(urp != address(0), "CharterManager/non-existing-urp");
         ManagedGemJoinLike(gemJoin).exit(urp, usr, val);

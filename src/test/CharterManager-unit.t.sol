@@ -39,11 +39,17 @@ contract Usr {
     function approve(address coin, address usr) public {
         Token(coin).approve(usr, uint256(-1));
     }
+    function join(address adapter_, address usr, uint256 wad) public {
+        manager.join(address(adapter_), usr, wad);
+    }
     function join(address usr, uint256 wad) public {
         manager.join(address(adapter), usr, wad);
     }
     function join(uint256 wad) public {
         manager.join(address(adapter), address(this), wad);
+    }
+    function exit(address adapter_, address usr, uint256 wad) public {
+        manager.exit(address(adapter_), usr, wad);
     }
     function exit(address usr, uint256 wad) public {
         manager.exit(address(adapter), usr, wad);
@@ -285,6 +291,17 @@ contract CharterManagerTest is TestBase {
         b.exit(address(a), 100e6);
         assertEq(gem.balanceOf(address(a)), 200e6);
         assertEq(gem.balanceOf(address(b)), 200e6);
+    }
+
+    function testFail_join_unauthorized() public {
+        (Usr a,) = init_user();
+        a.join(address(a) ,address(a) ,100 * 1e6);
+    }
+
+    function testFail_exit_unauthorized() public {
+        (Usr a,) = init_user();
+        a.join(10 * 1e6);
+        a.exit(address(a), address(a) ,10 * 1e6);
     }
 
     function test_frob_ungate() public {
