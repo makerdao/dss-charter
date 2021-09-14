@@ -18,6 +18,7 @@ pragma solidity 0.6.12;
 
 interface VatLike {
     function live() external view returns (uint256);
+    function wards(address) external view returns (uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
     function fork(bytes32, address, address, int256, int256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
@@ -44,7 +45,7 @@ interface ManagedGemJoinLike {
     function exit(address, address, uint256) external;
 }
 
-interface TokenLike {
+interface GemLike {
     function approve(address, uint256) external;
     function transferFrom(address, address, uint256) external;
 }
@@ -73,12 +74,12 @@ contract CharterManager {
 
     function rely(address usr) external auth {
         wards[usr] = 1;
-        emit Rely(msg.sender);
+        emit Rely(usr);
     }
 
     function deny(address usr) external auth {
         wards[usr] = 0;
-        emit Deny(msg.sender);
+        emit Deny(usr);
     }
 
     modifier auth {
@@ -110,9 +111,11 @@ contract CharterManager {
 }
 
 contract CharterManagerImp {
-    // --- Data ---
+    // --- Proxy Storage ---
     bytes32 slot0; // avoid collision with proxy's implementation field
     mapping (address => uint256) public wards;
+
+    // --- Implementation Storage ---
     mapping (address => address) public proxy; // UrnProxy per user
     mapping (address => mapping (address => uint256)) public can;
     mapping (bytes32 => uint256)                      public gate;  // allow only permissioned vaults
@@ -126,9 +129,14 @@ contract CharterManagerImp {
     address public immutable vow;
     address public immutable spotter;
 
-    // --- Administration ---
+    // --- Events ---
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
     event File(bytes32 indexed ilk, address indexed usr, bytes32 indexed what, uint256 data);
+    event Hope(address indexed from, address indexed to);
+    event Nope(address indexed from, address indexed to);
+    event NewProxy(address indexed usr, address indexed urp);
+
+    // --- Administration ---
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
         if (what == "gate") gate[ilk] = data;
         else if (what == "Nib") Nib[ilk] = data;
@@ -145,8 +153,8 @@ contract CharterManagerImp {
     }
 
     // --- Math ---
-    uint256 constant RAY = 10 ** 27;
     uint256 constant WAD = 10 ** 18;
+    uint256 constant RAY = 10 ** 27;
 
     function sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
@@ -176,22 +184,19 @@ contract CharterManagerImp {
         spotter = spotter_;
     }
 
-    event Allow(address indexed from, address indexed to);
-    event Disallow(address indexed from, address indexed to);
     modifier allowed(address usr) {
         require(msg.sender == usr || can[usr][msg.sender] == 1, "CharterManager/not-allowed");
         _;
     }
-    function allow(address usr) external {
+    function hope(address usr) external {
         can[msg.sender][usr] = 1;
-        emit Allow(msg.sender, usr);
+        emit Hope(msg.sender, usr);
     }
-    function disallow(address usr) external {
+    function nope(address usr) external {
         can[msg.sender][usr] = 0;
-        emit Disallow(msg.sender, usr);
+        emit Nope(msg.sender, usr);
     }
 
-    event NewProxy(address indexed usr, address indexed urp);
     function getOrCreateProxy(address usr) public returns (address urp) {
         urp = proxy[usr];
         if (urp == address(0)) {
@@ -201,12 +206,17 @@ contract CharterManagerImp {
     }
 
     function join(address gemJoin, address usr, uint256 val) external {
-        TokenLike(ManagedGemJoinLike(gemJoin).gem()).transferFrom(msg.sender, address(this), val);
-        TokenLike(ManagedGemJoinLike(gemJoin).gem()).approve(gemJoin, val);
+        require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
+
+        address gem = ManagedGemJoinLike(gemJoin).gem();
+        GemLike(gem).transferFrom(msg.sender, address(this), val);
+        GemLike(gem).approve(gemJoin, val);
         ManagedGemJoinLike(gemJoin).join(getOrCreateProxy(usr), val);
     }
 
     function exit(address gemJoin, address usr, uint256 val) external {
+        require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
+
         address urp = proxy[msg.sender];
         require(urp != address(0), "CharterManager/non-existing-urp");
         ManagedGemJoinLike(gemJoin).exit(urp, usr, val);
@@ -223,15 +233,16 @@ contract CharterManagerImp {
     }
 
     function validate(bytes32 ilk, address u, address urp, int256 dink, int256 dart, uint256 rate, uint256 spot, uint256 _gate) internal {
-        (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
-        uint256 tab = mul(art, rate); // rad
-
-        if (dart > 0 && _gate == 1) {
-            require(tab <= uline[ilk][u], "CharterManager/user-line-exceeded");
-        }
-
         if (dart > 0 || dink < 0) {
             // vault is more risky than before
+
+            (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
+            uint256 tab = mul(art, rate); // rad
+
+            if (dart > 0 && _gate == 1) {
+                require(tab <= uline[ilk][u], "CharterManager/user-line-exceeded");
+            }
+
             uint256 _peace = (_gate == 1) ? peace[ilk][u] : Peace[ilk];
             if (_peace > 0) {
                 (, uint256 mat) = SpotterLike(spotter).ilks(ilk);
@@ -242,10 +253,9 @@ contract CharterManagerImp {
         }
     }
 
-    function frob(address gemJoin, address u, address v, address w, int256 dink, int256 dart) external allowed(u) {
+    function frob(bytes32 ilk, address u, address v, address w, int256 dink, int256 dart) external allowed(u) {
         require(u == v && w == msg.sender, "CharterManager/not-matching");
         address urp = getOrCreateProxy(u);
-        bytes32 ilk = ManagedGemJoinLike(gemJoin).ilk();
         (, uint256 rate, uint256 spot,,) = VatLike(vat).ilks(ilk);
         uint256 _gate = gate[ilk];
 
@@ -257,11 +267,11 @@ contract CharterManagerImp {
         validate(ilk, u, urp, dink, dart, rate, spot, _gate);
     }
 
-    function flux(address gemJoin, address src, address dst, uint256 wad) external allowed(src) {
+    function flux(bytes32 ilk, address src, address dst, uint256 wad) external allowed(src) {
         address surp = getOrCreateProxy(src);
         address durp = getOrCreateProxy(dst);
 
-        VatLike(vat).flux(ManagedGemJoinLike(gemJoin).ilk(), surp, durp, wad);
+        VatLike(vat).flux(ilk, surp, durp, wad);
     }
 
     function onLiquidation(address gemJoin, address usr, uint256 wad) external {}
