@@ -255,9 +255,16 @@ rule frob_proxy_already_exists_w_not_vow_or_proxy(address u, address v, address 
 
     // dai assertions are conditional on whether any origination fee applies
     mathint dtab = rate * to_mathint(dart);
-    mathint coin = (dart > 0 && _nib > 0) ? dtab * _nib / 10^18 : 0;
-    assert(theVat.dai(_vow) == preVowDai + coin, "origination fee not sent to the Vow");
-    assert(theVat.dai(w) == preWDai + dtab - coin, "dai drawn not sent to destination");
+//    mathint coin = (dart > 0 && _nib > 0) ? dtab * _nib / 10^18 : 0;
+//    assert(theVat.dai(_vow) == preVowDai + coin, "origination fee not sent to the Vow");
+//    assert(theVat.dai(w) == preWDai + dtab - coin, "dai drawn not sent to destination");
+    assert(theVat.dai(_vow) >= preVowDai);
+    if (dart > 0) {
+        assert(theVat.dai(w) >= preWDai, "dai of destination should not decrease if dart > 0");
+        assert(theVat.dai(w) <= preWDai + dtab, "dai of destination should not increase by more than dtab if dart > 0");
+    } else {
+        assert(theVat.dai(w) == preWDai + dtab, "dai drawn not sent to destination");
+    }
     assert(theVat.dai(proxyAddr) == preProxyDai, "proxy dai changed unexpectedly");
 
     // gem assertions    
