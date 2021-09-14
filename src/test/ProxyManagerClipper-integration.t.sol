@@ -18,7 +18,7 @@ pragma solidity 0.6.12;
 import "./TestBase.sol";
 import {ManagedGemJoin} from "lib/dss-gem-joins/src/join-managed.sol";
 import {CharterManager,CharterManagerImp} from "src/CharterManager.sol";
-import {ProxyManagerClipper} from "lib/dss-crop-join/src/ProxyManagerClipper.sol";
+import {ProxyManagerClipper} from "lib/proxy-manager-clipper/src/ProxyManagerClipper.sol";
 import {Usr} from './CharterManager-unit.t.sol';
 
 interface VatLike {
@@ -152,7 +152,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         gem     = new Token(18, 10**6 * WAD);
         join    = new ManagedGemJoin(address(vat), ILK, address(gem));
         CharterManager base = new CharterManager();
-        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow))));
+        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow), address(0))));
         manager = CharterManagerImp(address(base));
         clipper = new ProxyManagerClipper(address(vat), address(spotter), address(dog), address(join), address(manager));
 
@@ -175,7 +175,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         clipper.file("calc", address(abacus));
 
         // Create Vault
-        usr = new Usr(join, manager);
+        usr = new Usr(ILK, join, manager);
         gem.transfer(address(usr), 10**3 * WAD);
         usr.approve(address(gem), address(manager));
         usr.join(10**3 * WAD);
@@ -185,7 +185,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         // This conveniently provisions an UrnProxy for the test contract as well.
         gem.approve(address(manager), uint256(-1));
         manager.join(address(join), address(this), 10**4 * WAD);
-        manager.frob(address(join), address(this), address(this), address(this), int256(10**4 * WAD), int256(1000 * WAD));
+        manager.frob(ILK, address(this), address(this), address(this), int256(10**4 * WAD), int256(1000 * WAD));
 
         // Hope the clipper so we can bid.
         vat.hope(address(clipper));

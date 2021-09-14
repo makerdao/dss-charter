@@ -21,16 +21,20 @@ import "src/CharterManager.sol";
 
 import {Vat} from "dss/vat.sol";
 import {Vow} from 'dss/vow.sol';
+import {Spotter} from 'dss/spot.sol';
 import {DaiJoin} from 'dss/join.sol';
 import {DSValue} from 'ds-value/value.sol';
 import {ManagedGemJoin} from "dss-gem-joins/join-managed.sol";
 
 contract Usr {
 
+    bytes32 ilk;
     ManagedGemJoin adapter;
     CharterManagerImp manager;
 
-    constructor(ManagedGemJoin adapter_, CharterManagerImp manager_) public {
+    constructor(bytes32 ilk_, ManagedGemJoin adapter_, CharterManagerImp manager_) public {
+
+        ilk = ilk_;
         adapter = adapter_;
         manager = manager_;
     }
@@ -38,11 +42,17 @@ contract Usr {
     function approve(address coin, address usr) public {
         Token(coin).approve(usr, uint256(-1));
     }
+    function join(address adapter_, address usr, uint256 wad) public {
+        manager.join(address(adapter_), usr, wad);
+    }
     function join(address usr, uint256 wad) public {
         manager.join(address(adapter), usr, wad);
     }
     function join(uint256 wad) public {
         manager.join(address(adapter), address(this), wad);
+    }
+    function exit(address adapter_, address usr, uint256 wad) public {
+        manager.exit(address(adapter_), usr, wad);
     }
     function exit(address usr, uint256 wad) public {
         manager.exit(address(adapter), usr, wad);
@@ -62,23 +72,23 @@ contract Usr {
     function dai() public view returns (uint256) {
         return Vat(address(adapter.vat())).dai(address(this));
     }
-    function allow(address usr) public {
-        manager.allow(address(usr));
+    function hope(address usr) public {
+        manager.hope(address(usr));
     }
-    function disallow(address usr) public {
-        manager.disallow(address(usr));
+    function nope(address usr) public {
+        manager.nope(address(usr));
     }
     function frob(int256 dink, int256 dart) public {
-        manager.frob(address(adapter), address(this), address(this), address(this), dink, dart);
+        manager.frob(ilk, address(this), address(this), address(this), dink, dart);
     }
     function frob(address u, address v, address w, int256 dink, int256 dart) public {
-        manager.frob(address(adapter), u, v, w, dink, dart);
+        manager.frob(ilk, u, v, w, dink, dart);
     }
     function frobDirect(address u, address v, address w, int256 dink, int256 dart) public {
         VatLike(manager.vat()).frob(adapter.ilk(), u, v, w, dink, dart);
     }
     function flux(address src, address dst, uint256 wad) public {
-        manager.flux(address(adapter), src, dst, wad);
+        manager.flux(ilk, src, dst, wad);
     }
     function fluxDirect(address src, address dst, uint256 wad) public {
         VatLike(manager.vat()).flux(adapter.ilk(), src, dst, wad);
@@ -129,6 +139,7 @@ contract CharterManagerTest is TestBase {
     Token               dai;
     Vat                 vat;
     Vow                 vow;
+    Spotter             spotter;
     DaiJoin             daiJoin;
     ManagedGemJoin      adapter;
     CharterManagerImp   manager;
@@ -154,14 +165,17 @@ contract CharterManagerTest is TestBase {
         vat.init(ilk);
         vat.file("Line", 100 * CEILING * 1e27);
         vat.file(ilk, "line", CEILING * 1e27);
-        vat.file(ilk, "spot", 1e36);
+        vat.file(ilk, "spot", 1e27);
+
+        spotter = new Spotter(address(vat));
+        spotter.file(ilk, "mat", 1.5 * 1e27);
 
         // adapter and manager setup
         adapter = new ManagedGemJoin(address(vat), ilk, address(gem));
         vat.rely(address(adapter));
 
         CharterManager base = new CharterManager();
-        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow))));
+        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow), address(spotter))));
         manager = CharterManagerImp(address(base));
 
         adapter.rely(address(manager));
@@ -194,14 +208,16 @@ contract CharterManagerTest is TestBase {
         );
     }
 
-    function init_ilk_ungate(uint256 Nib) public {
+    function init_ilk_ungate(uint256 Nib, uint256 Peace) public {
         manager.file(ilk, "gate", 0);
         manager.file(ilk, "Nib", Nib);
+        manager.file(ilk, "Peace", Peace);
     }
 
-    function init_ilk_gate(address user, uint256 nib, uint256 uline) public {
+    function init_ilk_gate(address user, uint256 nib, uint256 peace, uint256 uline) public {
         manager.file(ilk, "gate", 1);
         manager.file(ilk, user, "nib", nib);
+        manager.file(ilk, user, "peace", peace);
         manager.file(ilk, user, "uline", uline);
     }
 
@@ -209,8 +225,8 @@ contract CharterManagerTest is TestBase {
         return init_user(200 * 1e6);
     }
     function init_user(uint256 cash) internal returns (Usr a, Usr b) {
-        a = new Usr(adapter, manager);
-        b = new Usr(adapter, manager);
+        a = new Usr(ilk, adapter, manager);
+        b = new Usr(ilk, adapter, manager);
 
         gem.transfer(address(a), cash);
         gem.transfer(address(b), cash);
@@ -228,12 +244,12 @@ contract CharterManagerTest is TestBase {
         assertTrue(manager.proxy(address(this)) != address(0));
     }
 
-    function test_allow_disallow() public {
+    function test_hope_nope() public {
         (Usr a, Usr b) = init_user();
         assertEq(manager.can(address(b), address(a)), 0);
-        b.allow(address(a));
+        b.hope(address(a));
         assertEq(manager.can(address(b), address(a)), 1);
-        b.disallow(address(a));
+        b.nope(address(a));
         assertEq(manager.can(address(b), address(a)), 0);
     }
 
@@ -280,8 +296,19 @@ contract CharterManagerTest is TestBase {
         assertEq(gem.balanceOf(address(b)), 200e6);
     }
 
+    function testFail_join_unauthorized() public {
+        (Usr a,) = init_user();
+        a.join(address(a) ,address(a) ,100 * 1e6);
+    }
+
+    function testFail_exit_unauthorized() public {
+        (Usr a,) = init_user();
+        a.join(10 * 1e6);
+        a.exit(address(a), address(a) ,10 * 1e6);
+    }
+
     function test_frob_ungate() public {
-        init_ilk_ungate(0);
+        init_ilk_ungate(0, 0);
         (Usr a,) = init_user();
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
@@ -299,7 +326,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_frob_ungate_Nib() public {
-        init_ilk_ungate(NIB_ONE_PCT);
+        init_ilk_ungate(NIB_ONE_PCT, 0);
         (Usr a,) = init_user();
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
@@ -333,9 +360,52 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 100 * 1e18);
     }
 
+    function test_frob_ungate_above_Peace() public {
+        init_ilk_ungate(0, 3 * RAY);
+        (Usr a,) = init_user();
+        a.join(100 * 1e6);
+        // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
+        a.frob(100 * 1e18, 50 * 1e18);
+        (uint256 ink, uint256 art) = a.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        assertEq(a.dai(), 50 * 1e45);
+        assertEq(a.gems(), 0);
+        a.frob(-100 * 1e18, -50 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(a.dai(), 0);
+        assertEq(a.gems(), 100 * 1e18);
+    }
+
+    function testFail_frob_ungate_below_Peace() public {
+        init_ilk_ungate(0, 3 * RAY);
+        (Usr a,) = init_user();
+        a.join(100 * 1e6);
+        // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
+        a.frob(100 * 1e18, 51 * 1e18);
+    }
+
+    function testFail_frob_ungate_withdraw_below_Peace() public {
+        init_ilk_ungate(0, 3 * RAY);
+        (Usr a,) = init_user();
+        a.join(100 * 1e6);
+        // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
+        a.frob(100 * 1e18, 50 * 1e18);
+        (uint256 ink, uint256 art) = a.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        assertEq(a.dai(), 50 * 1e45);
+        assertEq(a.gems(), 0);
+
+        // should not be able to withdraw collateral and go below min cr
+        a.frob(-1 * 1e18, 0);
+    }
+
     function test_frob_gate() public {
         (Usr a,) = init_user();
-        init_ilk_gate(address(a), 0, 50 * 1e45);
+        init_ilk_gate(address(a), 0, 0, 50 * 1e45);
 
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
@@ -355,7 +425,7 @@ contract CharterManagerTest is TestBase {
 
     function test_frob_gate_nib() public {
         (Usr a,) = init_user();
-        init_ilk_gate(address(a), 2 * NIB_ONE_PCT, 50 * 1e45);
+        init_ilk_gate(address(a), 2 * NIB_ONE_PCT, 0, 50 * 1e45);
 
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
@@ -389,9 +459,56 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 100 * 1e18);
     }
 
+    function test_frob_gate_above_peace() public {
+        (Usr a,) = init_user();
+        init_ilk_gate(address(a), 0, 2 * RAY, 100 * 1e45);
+
+        a.join(100 * 1e6);
+        // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 75 dai.
+        a.frob(100 * 1e18, 75 * 1e18);
+        (uint256 ink, uint256 art) = a.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 75 * 1e18);
+        assertEq(a.dai(), 75 * 1e45);
+        assertEq(a.gems(), 0);
+        assertEq(vat.dai(address(vow)), 0);
+        a.frob(-100 * 1e18, -75 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(a.dai(), 0);
+        assertEq(a.gems(), 100 * 1e18);
+    }
+
+    function testFail_frob_gate_below_peace() public {
+        (Usr a,) = init_user();
+        init_ilk_gate(address(a), 0, 2 * RAY, 100 * 1e45);
+
+        a.join(100 * 1e6);
+        // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 75 dai.
+        a.frob(100 * 1e18, 76 * 1e18);
+    }
+
+    function testFail_frob_gate_withdraw_below_peace() public {
+        (Usr a,) = init_user();
+        init_ilk_gate(address(a), 0, 2 * RAY, 100 * 1e45);
+
+        a.join(100 * 1e6);
+        // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 75 dai.
+        a.frob(100 * 1e18, 75 * 1e18);
+        (uint256 ink, uint256 art) = a.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 75 * 1e18);
+        assertEq(a.dai(), 75 * 1e45);
+        assertEq(a.gems(), 0);
+
+        // should not be able to withdraw collateral and go below min cr
+        a.frob(-1 * 1e18, 0);
+    }
+
     function testFail_frob_undelegated_manager() public {
         (Usr a,) = init_user();
-        init_ilk_gate(address(a), 0, 50 * 1e45);
+        init_ilk_gate(address(a), 0, 0, 50 * 1e45);
         a.nope(address(vat), address(manager));
 
         a.join(100 * 1e6);
@@ -403,7 +520,7 @@ contract CharterManagerTest is TestBase {
 
     function testFail_frob_gate_uline_exceeded() public {
         (Usr a,) = init_user();
-        init_ilk_gate(address(a), 0, 50 * 1e45);
+        init_ilk_gate(address(a), 0, 0, 50 * 1e45);
 
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 60 * 1e18);
@@ -411,14 +528,14 @@ contract CharterManagerTest is TestBase {
 
     function testFail_frob_gate_other() public {
         (Usr a, Usr b) = init_user();
-        init_ilk_gate(address(a), 0, 50 * 1e45);
+        init_ilk_gate(address(a), 0, 0, 50 * 1e45);
 
         b.join(100 * 1e6);
         b.frob(100 * 1e18, 50 * 1e18);
     }
 
     function test_drip_withdraw() public {
-        init_ilk_ungate(10 * NIB_ONE_PCT);
+        init_ilk_ungate(10 * NIB_ONE_PCT, 0);
         (Usr a,) = init_user();
 
         a.join(20 * 1e6);
@@ -434,11 +551,11 @@ contract CharterManagerTest is TestBase {
         vat.fold(ilk, address(vow), 0.02 * 1e27);
 
         // frob out some of the funds
-        a.frob(-15 * 1e18, -15 * 1e18);
+        a.frob(-10 * 1e18, -15 * 1e18);
         (ink, art) = a.urn();
-        assertEq(ink, 5 * 1e18);
+        assertEq(ink, 10 * 1e18);
         assertEq(art, 5 * 1e18);
-        assertEq(a.gems(), 15 * 1e18);
+        assertEq(a.gems(), 10 * 1e18);
         // -15 * 1e18 should be taking 15.3 DAI (15 + 2%) from the current 18 DAI balance.
         assertEq(a.dai(), 2.7 * 1e45);
 
@@ -448,7 +565,7 @@ contract CharterManagerTest is TestBase {
         daiJoin.join(address(a), 100 * 1e18);
 
         // repay remaining debt, withdraw collateral
-        a.frob(-5 * 1e18, -5 * 1e18);
+        a.frob(-10 * 1e18, -5 * 1e18);
         (ink, art) = a.urn();
         assertEq(ink, 0);
         assertEq(art, 0);
@@ -481,7 +598,7 @@ contract CharterManagerTest is TestBase {
         a.join(address(b), 100 * 1e6);
         assertEq(gem.balanceOf(address(a)), 100 * 1e6);
         assertEq(b.gems(), 100 * 1e18);
-        b.allow(address(a));
+        b.hope(address(a));
         a.frob(address(b), address(b), address(a), 100 * 1e18, 50 * 1e18);
         assertEq(b.gems(), 0);
         (uint256 ink, uint256 art) = b.urn();
@@ -506,8 +623,8 @@ contract CharterManagerTest is TestBase {
     function testFail_frob_other2() public {
         (Usr a, Usr b) = init_user();
         a.join(address(b), 100 * 1e6);
-        b.allow(address(a));
-        b.disallow(address(a));
+        b.hope(address(a));
+        b.nope(address(a));
         a.frob(address(b), address(b), address(a), 100 * 1e18, 50 * 1e18);
     }
 
@@ -537,7 +654,7 @@ contract CharterManagerTest is TestBase {
         (Usr a, Usr b) = init_user();
         a.join(100 * 1e6);
         assertEq(a.gems(), 100 * 1e18);
-        a.allow(address(b));
+        a.hope(address(b));
         b.flux(address(a), address(b), 100 * 1e18);
         assertEq(a.gems(), 0);
         assertEq(b.gems(), 100 * 1e18);
@@ -555,8 +672,8 @@ contract CharterManagerTest is TestBase {
     function testFail_flux_from_other2() public {
         (Usr a, Usr b) = init_user();
         a.join(100 * 1e6);
-        a.allow(address(b));
-        a.disallow(address(b));
+        a.hope(address(b));
+        a.nope(address(b));
         b.flux(address(a), address(b), 100 * 1e18);
     }
 
