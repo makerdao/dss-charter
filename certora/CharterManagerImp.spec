@@ -1,10 +1,11 @@
 // CharterManagerImp.spec
 
-// certoraRun src/CharterManager.sol:CharterManagerImp certora/DSToken.sol certora/Vat.sol certora/ManagedGemJoin.sol --link CharterManagerImp:vat=Vat ManagedGemJoin:gem=DSToken ManagedGemJoin:vat=Vat --verify CharterManagerImp:certora/CharterManagerImp.spec --rule_sanity
+// certoraRun src/CharterManager.sol:CharterManagerImp certora/DSToken.sol certora/Vat.sol certora/ManagedGemJoin.sol certora/Spotter.sol --link CharterManagerImp:vat=Vat CharterManagerImp:spotter=Spotter ManagedGemJoin:gem=DSToken ManagedGemJoin:vat=Vat --verify CharterManagerImp:certora/CharterManagerImp.spec --rule_sanity
 
 using DSToken as token
 using Vat as theVat
 using ManagedGemJoin as managedGemJoin
+using Spotter as theSpotter
 
 methods {
     wards(address) returns (uint256) envfree
@@ -12,10 +13,13 @@ methods {
     can(address, address) returns (uint256) envfree
     gate(bytes32) returns (uint256) envfree
     Nib(bytes32) returns (uint256) envfree
-    nib(bytes32, address) returns uint256 envfree
+    nib(bytes32, address) returns (uint256) envfree
+    Peace(bytes32) returns (uint256) envfree
+    peace(bytes32, address) returns (uint256) envfree
     uline(bytes32, address) returns uint256 envfree
     vat() returns (address) envfree
     vow() returns (address) envfree
+    spotter() returns (address) envfree
     getOrCreateProxy(address) returns (address) envfree
     onLiquidation(address, address, uint256) envfree
     onVatFlux(address, address, address, uint256) envfree
@@ -41,6 +45,11 @@ methods {
     token.decimals() returns (uint256) envfree
     transferFrom(address, address, uint256) => DISPATCHER(true)
     approve(address, uint256) => DISPATCHER(true)
+
+    // Spotter methods
+    theSpotter.ilks(bytes32) returns (address, uint256) envfree
+    // Already dispatched as part of the Vat methods.
+    // ilks(bytes32) => DISPATCHER(true)
 }
 
 // Confirm no unexpected reversion cases for envfree functions.
@@ -63,6 +72,12 @@ rule envfree_funcs_no_unexpected_reverts(address addr1, address addr2, address a
 
     nib@withrevert(ilk, addr1);
     assert(!lastReverted, "nib has an unexpected revert condition"); 
+
+    Peace@withrevert(ilk);
+    assert(!lastReverted, "Peace has an unexpected revert condition"); 
+
+    peace@withrevert(ilk, addr1);
+    assert(!lastReverted, "peace has an unexpected revert condition"); 
 
     uline@withrevert(ilk, addr1);
     assert(!lastReverted, "uline has an unexpected revert condition"); 
@@ -87,16 +102,20 @@ rule envfree_funcs_no_unexpected_reverts(address addr1, address addr2, address a
 rule file_ilk(bytes32 ilk, bytes32 what, uint256 data) {
     uint256 pre_gate = gate(ilk);
     uint256 pre_Nib = Nib(ilk);
+    uint256 pre_Peace = Peace(ilk);
 
     env e;
     file(e, ilk, what, data);
 
-    assert(what == 0x6761746500000000000000000000000000000000000000000000000000000000
-               => gate(ilk) == data && Nib(ilk) == pre_Nib,
+    assert(what == 0x6761746500000000000000000000000000000000000000000000000000000000  // "gate"
+               => gate(ilk) == data && Nib(ilk) == pre_Nib && Peace(ilk) == pre_Peace,
            "file did not set gate as expected");
-    assert(what == 0x4e69620000000000000000000000000000000000000000000000000000000000
-               => gate(ilk) == pre_gate && Nib(ilk) == data,
+    assert(what == 0x4e69620000000000000000000000000000000000000000000000000000000000  // "Nib"
+               => gate(ilk) == pre_gate && Nib(ilk) == data && Peace(ilk) == pre_Peace,
            "file did not set Nib as expected");
+    assert(what == 0x5065616365000000000000000000000000000000000000000000000000000000  // "Peace"
+               => gate(ilk) == pre_gate && Nib(ilk) == pre_Nib && Peace(ilk) == data,
+           "file did not set Peace as expected");
 }
 
 rule file_ilk_revert(bytes32 ilk, bytes32 what, uint256 data) {
@@ -114,7 +133,9 @@ rule file_ilk_revert(bytes32 ilk, bytes32 what, uint256 data) {
 
     bool revert3 = what != 0x6761746500000000000000000000000000000000000000000000000000000000   // "gate"
                    &&
-                   what != 0x4e69620000000000000000000000000000000000000000000000000000000000;  // "Nib"
+                   what != 0x4e69620000000000000000000000000000000000000000000000000000000000   // "Nib"
+                   &&
+                   what != 0x5065616365000000000000000000000000000000000000000000000000000000;  // "Peace"
     assert(revert3 => lastReverted, "file did not revert for unrecognized what");
 
     assert(lastReverted => revert1 || revert2 || revert3,
@@ -124,16 +145,20 @@ rule file_ilk_revert(bytes32 ilk, bytes32 what, uint256 data) {
 rule file_ilk_usr(bytes32 ilk, address usr, bytes32 what, uint256 data) {
     uint256 pre_uline = uline(ilk, usr);
     uint256 pre_nib = nib(ilk, usr);
+    uint256 pre_peace = peace(ilk, usr);
 
     env e;
     file(e, ilk, usr, what, data);
 
     assert(what == 0x756c696e65000000000000000000000000000000000000000000000000000000  // "uline"
-               => uline(ilk, usr) == data && nib(ilk, usr) == pre_nib, 
+               => uline(ilk, usr) == data && nib(ilk, usr) == pre_nib && peace(ilk, usr) == pre_peace,
            "file did not set uline as expected");
     assert(what == 0x6e69620000000000000000000000000000000000000000000000000000000000  // "nib"
-               => uline(ilk, usr) == pre_uline && nib(ilk, usr) == data,
+               => uline(ilk, usr) == pre_uline && nib(ilk, usr) == data && peace(ilk, usr) == pre_peace,
            "file did not set nib as expected");
+    assert(what == 0x7065616365000000000000000000000000000000000000000000000000000000  // "peace"
+               => uline(ilk, usr) == pre_uline && nib(ilk, usr) == pre_nib && peace(ilk, usr) == data,
+           "file did not set peace as expected");
 }
 
 rule file_ilk_usr_revert(bytes32 ilk, address usr, bytes32 what, uint256 data) {
@@ -151,7 +176,9 @@ rule file_ilk_usr_revert(bytes32 ilk, address usr, bytes32 what, uint256 data) {
 
     bool revert3 = what != 0x756c696e65000000000000000000000000000000000000000000000000000000   // "uline"
                    &&
-                   what != 0x6e69620000000000000000000000000000000000000000000000000000000000;  // "nib"
+                   what != 0x6e69620000000000000000000000000000000000000000000000000000000000   // "nib"
+                   &&
+                   what != 0x7065616365000000000000000000000000000000000000000000000000000000;  // "peace"
     assert(revert3 => lastReverted, "file did not revert for unrecognized what");
 
     assert(lastReverted => revert1 || revert2 || revert3,
@@ -224,6 +251,7 @@ rule join_proxy_already_exists(address gemJoin, address usr, uint256 val) {
 
 rule frob_proxy_already_exists_w_not_vow_or_proxy(address u, address v, address w, int256 dink, int256 dart) {
     require(vat() == theVat);
+    require(spotter() == theSpotter);
     require(token.decimals() == 18);
     require(managedGemJoin.vat() == theVat);
     require(managedGemJoin.gem() == token);
