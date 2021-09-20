@@ -298,3 +298,24 @@ rule frob_proxy_already_exists_w_not_vow_or_proxy(address u, address v, address 
     // gem assertions    
     assert(theVat.gem(ilk, proxyAddr) == preProxyGem - to_mathint(dink), "proxy gem not modified as expected");    
 }
+
+rule flux_proxies_already_exist_distinct_addresses(bytes32 ilk, address src, address dst, uint256 wad) {
+    require(vat() == theVat);
+    address srcProxyAddr = proxy(src);
+    require(srcProxyAddr != 0);
+    address dstProxyAddr = proxy(dst);
+    require(dstProxyAddr != 0);
+    require(srcProxyAddr != dstProxyAddr);  // should imply src != dst
+
+    uint256 srcPreGemBal = theVat.gem(ilk, srcProxyAddr);
+    uint256 dstPreGemBal = theVat.gem(ilk, dstProxyAddr);
+
+    env e;
+    flux(e, ilk, src, dst, wad);
+
+    uint256 srcPostGemBal = theVat.gem(ilk, srcProxyAddr);
+    uint256 dstPostGemBal = theVat.gem(ilk, dstProxyAddr);
+
+    assert(srcPostGemBal == srcPreGemBal - wad, "src balance not modified correctly");   
+    assert(dstPostGemBal == dstPreGemBal + wad, "dst balance not modified correctly");   
+}
