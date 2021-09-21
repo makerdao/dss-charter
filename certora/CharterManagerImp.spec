@@ -369,5 +369,33 @@ rule flux_proxies_already_exist_distinct_addresses_revert(bytes32 ilk, address s
     assert(revert5 => lastReverted, "flux did not revert when dst balance overflowed");
 
     assert(lastReverted => revert1 || revert2 || revert3 || revert4 || revert5,
-           "flux_proxies_already_exist_revert does not cover all revert conditions");
+           "flux_proxies_already_exist_distinct_addresses_revert does not cover all revert conditions");
+}
+
+rule flux_proxies_already_exist_identical_addresses_revert(bytes32 ilk, address usr, uint256 wad) {
+    require(vat() == theVat);
+    address proxyAddr = proxy(usr);
+    require(proxyAddr != 0);
+
+    uint256 preGemBal = theVat.gem(ilk, proxyAddr);
+
+    env e;
+    bool allowed = usr == e.msg.sender || can(usr, e.msg.sender) == 1;
+    bool allowedVat = proxyAddr == currentContract || theVat.can(proxyAddr, currentContract) == 1;
+    flux@withrevert(e, ilk, usr, usr, wad);
+
+    bool revert1 = e.msg.value > 0;
+    assert(revert1 => lastReverted, "flux did not revert when sent ETH");
+
+    bool revert2 = !allowed;
+    assert(revert2 => lastReverted, "flux did not revert when caller was unauthorized");
+
+    bool revert3 = !allowedVat;
+    assert(revert3 => lastReverted, "flux did not revert when Vat authorization was absent");
+
+    bool revert4 = preGemBal < wad;
+    assert(revert4 => lastReverted, "flux did not revert when src balance underflowed");
+
+    assert(lastReverted => revert1 || revert2 || revert3 || revert4,
+           "flux_proxies_already_exist_identical_addresses_revert does not cover all revert conditions");
 }
