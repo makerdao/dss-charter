@@ -202,14 +202,11 @@ contract DssProxyActionsCharter is Common {
         ManagerLike(manager).join(apt, usr, msg.value);
     }
 
-    function gemJoin_join(address manager, address apt, address usr, uint amt, bool transferFrom) public {
-        // Only executes for tokens that have approval/transferFrom implementation
-        if (transferFrom) {
-            // Gets token from the user's wallet
-            GemJoinLike(apt).gem().transferFrom(msg.sender, address(this), amt);
-            // Approves adapter to take the token amount
-            GemJoinLike(apt).gem().approve(apt, amt);
-        }
+    function gemJoin_join(address manager, address apt, address usr, uint amt) public {
+        // Gets token from the user's wallet
+        GemJoinLike(apt).gem().transferFrom(msg.sender, address(this), amt);
+        // Approves adapter to take the token amount
+        GemJoinLike(apt).gem().approve(apt, amt);
         // Joins token collateral into the vat
         ManagerLike(manager).join(apt, usr, amt);
     }
@@ -284,11 +281,10 @@ contract DssProxyActionsCharter is Common {
         address manager,
         address gemJoin,
         address usr,
-        uint amt,
-        bool transferFrom
+        uint amt
     ) public {
         // Takes token amount from user's wallet and joins into the vat
-        gemJoin_join(manager, gemJoin, usr, amt, transferFrom);
+        gemJoin_join(manager, gemJoin, usr, amt);
         // Locks token amount into the CDP
         frob(manager, GemJoinLike(gemJoin).ilk(), usr, toInt(convertTo18(gemJoin, amt)), 0);
     }
@@ -435,8 +431,7 @@ contract DssProxyActionsCharter is Common {
         address daiJoin,
         address usr,
         uint amtC,
-        uint wadD,
-        bool transferFrom
+        uint wadD
     ) public {
         address vat = ManagerLike(manager).vat();
         bytes32 ilk = GemJoinLike(gemJoin).ilk();
@@ -444,7 +439,7 @@ contract DssProxyActionsCharter is Common {
         int dart = _getDrawDart(vat, jug, ilk, wadD);
 
         // Takes token amount from user's wallet and joins into the vat
-        gemJoin_join(manager, gemJoin, usr, amtC, transferFrom);
+        gemJoin_join(manager, gemJoin, usr, amtC);
         // Locks token amount into the CDP and generates debt
         frob(manager, ilk, usr, dink, dart);
         // Allows adapter to access to proxy's DAI balance in the vat
