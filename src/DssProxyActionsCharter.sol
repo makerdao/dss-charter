@@ -63,11 +63,6 @@ interface DaiJoinLike {
     function exit(address, uint256) external;
 }
 
-interface HopeLike {
-    function hope(address) external;
-    function nope(address) external;
-}
-
 interface EndLike {
     function fix(bytes32) external view returns (uint256);
     function cash(bytes32, uint256) external;
@@ -212,17 +207,17 @@ contract DssProxyActionsCharter is Common {
     }
 
     function hope(
-        address obj,
+        address charter,
         address usr
     ) public {
-        HopeLike(obj).hope(usr);
+        CharterLike(charter).hope(usr);
     }
 
     function nope(
-        address obj,
+        address charter,
         address usr
     ) public {
-        HopeLike(obj).nope(usr);
+        CharterLike(charter).nope(usr);
     }
 
     function getOrCreateProxy(address charter, address usr) public returns (address urp) {
