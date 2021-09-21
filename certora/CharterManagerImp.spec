@@ -25,6 +25,8 @@ methods {
     onVatFlux(address, address, address, uint256) envfree
 
     // Vat methods
+    theVat.can(address, address) returns (uint256) envfree
+    can(address, address) => DISPATCHER(true)
     theVat.dai(address) returns (uint256) envfree
     dai(address) => DISPATCHER(true)
     theVat.ilks(bytes32) returns (uint256, uint256, uint256, uint256, uint256) envfree
@@ -333,4 +335,34 @@ rule flux_proxies_already_exist_identical_addresses(bytes32 ilk, address usr, ui
     uint256 postGemBal = theVat.gem(ilk, proxyAddr);
 
     assert(postGemBal == preGemBal, "gem balance modified unexpectedly");   
+}
+
+rule flux_proxies_already_exist_revert(bytes32 ilk, address src, address dst, uint256 wad) {
+    require(vat() == theVat);
+    address srcProxyAddr = proxy(src);
+    require(srcProxyAddr != 0);
+    address dstProxyAddr = proxy(dst);
+    require(dstProxyAddr != 0);
+
+    uint256 srcPreGemBal = theVat.gem(ilk, srcProxyAddr);
+    uint256 dstPreGemBal = theVat.gem(ilk, dstProxyAddr);
+
+    env e;
+    bool allowed = srcProxyAddr == e.msg.sender || theVat.can(srcProxyAddr, e.msg.sender) == 1;
+    flux@withrevert(e, ilk, src, dst, wad);
+
+    bool revert1 = e.msg.value > 0;
+    assert(revert1 => lastReverted, "flux did not revert when sent ETH");
+
+    bool revert2 = !allowed;
+    assert(revert2 => lastReverted, "flux did not revert when caller was unauthorized");
+
+    bool revert3 = srcPreGemBal < wad;
+    assert(revert3 => lastReverted, "flux did not revert when src balance underflowed");
+
+    bool revert4 = (2^256 - 1) - wad < dstPreGemBal;
+    assert(revert4 => lastReverted, "flux did not revert when dst balance overflowed");
+
+//    assert(lastReverted => revert1 || revert2 || revert3 || revert4,
+//           "flux_proxies_already_exist_revert does not cover all revert conditions");
 }
