@@ -227,7 +227,7 @@ rule getOrCreateProxy_proxy_already_exists(address usr) {
     assert(proxyAddr == proxy(usr), "getOrCreatProxy changed the user's proxy unexpectedly");
 }
 
-// broken due to overapproximation of 10^k
+// broken due to overapproximation of 10^k (fixed in staging, remove comment once the fix is pushed to production)
 rule join_proxy_already_exists(address gemJoin, address usr, uint256 val) {
     require(vat() == theVat);
     require(token.decimals() == 18);
@@ -337,18 +337,20 @@ rule flux_proxies_already_exist_identical_addresses(bytes32 ilk, address usr, ui
     assert(postGemBal == preGemBal, "gem balance modified unexpectedly");   
 }
 
-rule flux_proxies_already_exist_revert(bytes32 ilk, address src, address dst, uint256 wad) {
+rule flux_proxies_already_exist_distinct_addresses_revert(bytes32 ilk, address src, address dst, uint256 wad) {
     require(vat() == theVat);
     address srcProxyAddr = proxy(src);
     require(srcProxyAddr != 0);
     address dstProxyAddr = proxy(dst);
     require(dstProxyAddr != 0);
+    require(srcProxyAddr != dstProxyAddr);  // should imply src != dst
 
     uint256 srcPreGemBal = theVat.gem(ilk, srcProxyAddr);
     uint256 dstPreGemBal = theVat.gem(ilk, dstProxyAddr);
 
     env e;
-    bool allowed = srcProxyAddr == e.msg.sender || theVat.can(srcProxyAddr, e.msg.sender) == 1;
+    bool allowed = src == e.msg.sender || can(src, e.msg.sender) == 1;
+    bool allowedVat = srcProxyAddr == currentContract || theVat.can(srcProxyAddr, currentContract) == 1;
     flux@withrevert(e, ilk, src, dst, wad);
 
     bool revert1 = e.msg.value > 0;
@@ -357,12 +359,15 @@ rule flux_proxies_already_exist_revert(bytes32 ilk, address src, address dst, ui
     bool revert2 = !allowed;
     assert(revert2 => lastReverted, "flux did not revert when caller was unauthorized");
 
-    bool revert3 = srcPreGemBal < wad;
-    assert(revert3 => lastReverted, "flux did not revert when src balance underflowed");
+    bool revert3 = !allowedVat;
+    assert(revert3 => lastReverted, "flux did not revert when Vat authorization was absent");
 
-    bool revert4 = (2^256 - 1) - wad < dstPreGemBal;
-    assert(revert4 => lastReverted, "flux did not revert when dst balance overflowed");
+    bool revert4 = srcPreGemBal < wad;
+    assert(revert4 => lastReverted, "flux did not revert when src balance underflowed");
 
-//    assert(lastReverted => revert1 || revert2 || revert3 || revert4,
-//           "flux_proxies_already_exist_revert does not cover all revert conditions");
+    bool revert5 = (2^256 - 1) - wad < dstPreGemBal;
+    assert(revert5 => lastReverted, "flux did not revert when dst balance overflowed");
+
+    assert(lastReverted => revert1 || revert2 || revert3 || revert4 || revert5,
+           "flux_proxies_already_exist_revert does not cover all revert conditions");
 }
