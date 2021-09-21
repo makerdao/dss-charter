@@ -316,6 +316,21 @@ rule flux_proxies_already_exist_distinct_addresses(bytes32 ilk, address src, add
     uint256 srcPostGemBal = theVat.gem(ilk, srcProxyAddr);
     uint256 dstPostGemBal = theVat.gem(ilk, dstProxyAddr);
 
-    assert(srcPostGemBal == srcPreGemBal - wad, "src balance not modified correctly");   
-    assert(dstPostGemBal == dstPreGemBal + wad, "dst balance not modified correctly");   
+    assert(srcPostGemBal == srcPreGemBal - wad, "src gem balance not modified correctly");   
+    assert(dstPostGemBal == dstPreGemBal + wad, "dst gem balance not modified correctly");   
+}
+
+rule flux_proxies_already_exist_identical_addresses(bytes32 ilk, address usr, uint256 wad) {
+    require(vat() == theVat);
+    address proxyAddr = proxy(usr);
+    require(proxyAddr != 0);
+
+    uint256 preGemBal = theVat.gem(ilk, proxyAddr);
+
+    env e;
+    flux(e, ilk, usr, usr, wad);
+
+    uint256 postGemBal = theVat.gem(ilk, proxyAddr);
+
+    assert(postGemBal == preGemBal, "gem balance modified unexpectedly");   
 }
