@@ -251,7 +251,7 @@ rule join_proxy_already_exists(address gemJoin, address usr, uint256 val) {
 
 // TODO: exit spec, skipping for now b/c probably affected by same bug as join spec
 
-rule frob_proxy_already_exists_w_not_vow_or_proxy(address u, address v, address w, int256 dink, int256 dart) {
+rule frob_proxy_already_exists_w_vow_proxy_all_distinct(address u, address v, address w, int256 dink, int256 dart) {
     require(vat() == theVat);
     require(spotter() == theSpotter);
     require(token.decimals() == 18);
@@ -269,6 +269,7 @@ rule frob_proxy_already_exists_w_not_vow_or_proxy(address u, address v, address 
 
     address _vow = vow();
     require(_vow != w);
+    require(_vow != proxyAddr);
 
     uint256 preVowDai = theVat.dai(_vow);
     uint256 preWDai = theVat.dai(w);
@@ -285,15 +286,21 @@ rule frob_proxy_already_exists_w_not_vow_or_proxy(address u, address v, address 
 
     // dai assertions are conditional on whether any origination fee applies
     mathint dtab = rate * to_mathint(dart);
-//    mathint coin = (dart > 0 && _nib > 0) ? dtab * _nib / 10^18 : 0;
-//    assert(theVat.dai(_vow) == preVowDai + coin, "origination fee not sent to the Vow");
+    mathint coin = (dart > 0 && _nib > 0) ? dtab * _nib / 10^18 : 0;
+    assert(theVat.dai(_vow) == preVowDai + coin, "origination fee not sent to the Vow");
+// The following assertion causes a timeout.
 //    assert(theVat.dai(w) == preWDai + dtab - coin, "dai drawn not sent to destination");
-    assert(theVat.dai(_vow) >= preVowDai);
     if (dart > 0) {
         assert(theVat.dai(w) >= preWDai, "dai of destination should not decrease if dart > 0");
+// The following assertion causes a timeout.
+//        assert(theVat.dai(w) > preWDai, "dai of destination should increase if dart > 0");
         assert(theVat.dai(w) <= preWDai + dtab, "dai of destination should not increase by more than dtab if dart > 0");
     } else {
-        assert(theVat.dai(w) == preWDai + dtab, "dai drawn not sent to destination");
+// The following assertion causes a timeout.
+//        assert(theVat.dai(w) == preWDai + dtab, "dai drawn not sent to destination");
+        assert(theVat.dai(w) <= preWDai, "dai of destination should not increase if dart <= 0");
+// The following assertion causes a timeout.
+//        assert(theVat.dai(w) >= preWDai + dtab, "dai of destination should not decrease by than dtab if dart <= 0");
     }
     assert(theVat.dai(proxyAddr) == preProxyDai, "proxy dai changed unexpectedly");
 
