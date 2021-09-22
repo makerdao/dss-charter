@@ -300,7 +300,7 @@ rule frob_proxy_already_exists_w_vow_proxy_all_distinct(address u, address v, ad
 //        assert(theVat.dai(w) == preWDai + dtab, "dai drawn not sent to destination");
         assert(theVat.dai(w) <= preWDai, "dai of destination should not increase if dart <= 0");
 // The following assertion causes a timeout.
-//        assert(theVat.dai(w) >= preWDai + dtab, "dai of destination should not decrease by than dtab if dart <= 0");
+//        assert(theVat.dai(w) >= preWDai + dtab, "dai of destination should not decrease by more than dtab if dart <= 0");
     }
     assert(theVat.dai(proxyAddr) == preProxyDai, "proxy dai changed unexpectedly");
 
