@@ -284,13 +284,13 @@ rule join_proxy_already_exists_revert(address gemJoin, address usr, uint256 val)
 
     bool gemJoinIsVatWard = theVat.wards(gemJoin) == 1;
 
-    // ignore a bunch of token-related reverts, as that is not the code-under-test here
+    // ignore a bunch of token-related reverts, as that is not the code under test here
     require(!token.stopped());
     require(token.balanceOf(e.msg.sender) >= val);
     bool allowanceSufficient = token.allowance(e.msg.sender, currentContract) >= val || e.msg.sender == currentContract;
     require(allowanceSufficient);
-    require(val + token.balanceOf(currentContract) <= 2^256 - 1);
-    require(val + token.balanceOf(gemJoin) <= 2^256 - 1);
+    require(val + token.balanceOf(currentContract) <= max_uint256);
+    require(val + token.balanceOf(gemJoin) <= max_uint256);
 
     bool managerIsGemJoinWard = managedGemJoin.wards(currentContract) == 1;
     bool gemJoinIsLive = managedGemJoin.live() == 1;
@@ -313,7 +313,7 @@ rule join_proxy_already_exists_revert(address gemJoin, address usr, uint256 val)
     bool revert5 = val > 2^255 - 1;
     assert(revert5 => lastReverted, "join did not revert when amount to slip exceeded max int256");
 
-    bool revert6 = preJoinUsrGemBal + val > 2^256 - 1;
+    bool revert6 = preJoinUsrGemBal + val > max_uint256;
     assert(revert6 => lastReverted, "join did not revert when user's gem balance overflowed");
 
     assert(lastReverted => revert1 || revert2 || revert3 ||
