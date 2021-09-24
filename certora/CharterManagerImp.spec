@@ -285,21 +285,20 @@ rule join_proxy_already_exists_revert(address gemJoin, address usr, uint256 val)
 
     require(token.decimals() == 18);  // Only affects behavior of ManagedGemJoin, not CharterManagerImp, and works around a Certora limitation (all exponentiation args must be constants).
 
+    bool gemJoinIsVatWard = theVat.wards(gemJoin) == 1;
+    bool managerIsGemJoinWard = managedGemJoin.wards(currentContract) == 1;
+    bool gemJoinIsLive = managedGemJoin.live() == 1;
+    uint256 preJoinUsrGemBal = theVat.gem(managedGemJoin.ilk(), proxyAddr);
+
     env e;
 
-    bool gemJoinIsVatWard = theVat.wards(gemJoin) == 1;
-
-    // ignore a bunch of token-related reverts, as that is not the code under test here
+    // ignore a bunch of token-related revert conditions, as that is not the code under test here
     require(!token.stopped());
     require(token.balanceOf(e.msg.sender) >= val);
     bool allowanceSufficient = token.allowance(e.msg.sender, currentContract) >= val || e.msg.sender == currentContract;
     require(allowanceSufficient);
     require(val + token.balanceOf(currentContract) <= max_uint256);
     require(val + token.balanceOf(gemJoin) <= max_uint256);
-
-    bool managerIsGemJoinWard = managedGemJoin.wards(currentContract) == 1;
-    bool gemJoinIsLive = managedGemJoin.live() == 1;
-    uint256 preJoinUsrGemBal = theVat.gem(managedGemJoin.ilk(), proxyAddr);
 
     join@withrevert(e, gemJoin, usr, val);
 
