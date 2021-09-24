@@ -263,8 +263,12 @@ rule join_proxy_already_exists(address gemJoin, address usr, uint256 val) {
     uint256 pre_gemBal = theVat.gem(ilk, proxyAddr);
 
     env e;
+    require(e.msg.sender != gemJoin);
+    uint256 pre_tokenBal = token.balanceOf(e.msg.sender);
     join(e, gemJoin, usr, val);
 
+    uint256 post_tokenBal = token.balanceOf(e.msg.sender);
+    assert(post_tokenBal == pre_tokenBal - val, "join did not pull tokens from the expected address");
     uint256 post_gemBal = theVat.gem(ilk, proxyAddr);
     assert(post_gemBal == pre_gemBal + val, "join did not add collateral as expected");
 }
