@@ -25,6 +25,10 @@ methods {
     onVatFlux(address, address, address, uint256) envfree
 
     // Vat methods
+    theVat.live() returns (uint256) envfree
+    live() => DISPATCHER(true)
+    theVat.wards(address) returns (uint256) envfree
+    wards(address) => DISPATCHER(true)
     theVat.can(address, address) returns (uint256) envfree
     can(address, address) => DISPATCHER(true)
     theVat.dai(address) returns (uint256) envfree
@@ -36,16 +40,31 @@ methods {
 
     // ManagedGemJoin methods
     managedGemJoin.vat() returns (address) envfree
+    vat() => DISPATCHER(true)
     managedGemJoin.gem() returns (address) envfree
-    managedGemJoin.dec() returns (uint256) envfree
     gem() => DISPATCHER(true)
+    managedGemJoin.dec() returns (uint256) envfree
+    dec() => DISPATCHER(true)
+    managedGemJoin.live() returns (uint256) envfree
+    // Already dispatched as part of the Vat methods.
+    // live() => DISPATCHER(true)
+    managedGemJoin.wards(address) returns (uint256) envfree
+    // Already dispatched as part of the Vat methods.
+    // wards(address) => DISPATCHER(true)
     managedGemJoin.ilk() returns (bytes32) envfree
     ilk() => DISPATCHER(true)
     join(address, uint256) => DISPATCHER(true)
 
     // DSToken methods
     token.decimals() returns (uint256) envfree
+    decimals() => DISPATCHER(true)
+    token.balanceOf(address) returns (uint256) envfree
+    balanceOf(address) => DISPATCHER(true)
+    token.allowance(address, address) returns (uint256) envfree
+    allowance(address, address) => DISPATCHER(true)
     transferFrom(address, address, uint256) => DISPATCHER(true)
+    token.stopped() returns (bool) envfree
+    stopped() => DISPATCHER(true)
     approve(address, uint256) => DISPATCHER(true)
 
     // Spotter methods
@@ -247,6 +266,59 @@ rule join_proxy_already_exists(address gemJoin, address usr, uint256 val) {
 
     uint256 post_gemBal = theVat.gem(ilk, proxyAddr);
     assert(post_gemBal == pre_gemBal + val, "join did not add collateral as expected");
+}
+
+rule join_proxy_already_exists_revert(address gemJoin, address usr, uint256 val) {
+    require(vat() == theVat);
+    require(managedGemJoin.vat() == theVat);
+    require(managedGemJoin.gem() == token);
+    require(managedGemJoin.dec() == token.decimals());
+    require(gemJoin == managedGemJoin);
+
+    address proxyAddr = proxy(usr);
+    require(proxyAddr != 0);
+
+    require(token.decimals() == 18);  // Only affects behavior of ManagedGemJoin, not CharterManagerImp, and works around a Certora limitation (all exponentiation args must be constants).
+
+    env e;
+
+    bool gemJoinIsVatWard = theVat.wards(gemJoin) == 1;
+
+    // ignore a bunch of token-related reverts, as that is not the code-under-test here
+    require(!token.stopped());
+    require(token.balanceOf(e.msg.sender) >= val);
+    bool allowanceSufficient = token.allowance(e.msg.sender, currentContract) >= val || e.msg.sender == currentContract;
+    require(allowanceSufficient);
+    require(val + token.balanceOf(currentContract) <= 2^256 - 1);
+    require(val + token.balanceOf(gemJoin) <= 2^256 - 1);
+
+    bool managerIsGemJoinWard = managedGemJoin.wards(currentContract) == 1;
+    bool gemJoinIsLive = managedGemJoin.live() == 1;
+    uint256 preJoinUsrGemBal = theVat.gem(managedGemJoin.ilk(), proxyAddr);
+
+    join@withrevert(e, gemJoin, usr, val);
+
+    bool revert1 = e.msg.value > 0;
+    assert(revert1 => lastReverted, "join did not revert when sent ETH");
+
+    bool revert2 = !gemJoinIsVatWard;
+    assert(revert2 => lastReverted, "join did not revert when gemJoin was not a Vat ward");
+
+    bool revert3 = !managerIsGemJoinWard;
+    assert(revert3 => lastReverted, "join did not revert when manager was not a ward of gemJoin");
+
+    bool revert4 = !gemJoinIsLive;
+    assert(revert4 => lastReverted, "join did not revert when gemJoin was not live");
+
+    bool revert5 = val > 2^255 - 1;
+    assert(revert5 => lastReverted, "join did not revert when amount to slip exceeded max int256");
+
+    bool revert6 = preJoinUsrGemBal + val > 2^256 - 1;
+    assert(revert6 => lastReverted, "join did not revert when user's gem balance overflowed");
+
+    assert(lastReverted => revert1 || revert2 || revert3 ||
+                           revert4 || revert5 || revert6,
+           "join_proxy_already_exists_revert does not cover all revert conditions");
 }
 
 // TODO: exit spec, skipping for now b/c probably affected by same bug as join spec
