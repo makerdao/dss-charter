@@ -192,7 +192,7 @@ contract DssProxyActionsCharter is Common {
         // Wraps ETH in WETH
         GemJoinLike(apt).gem().deposit{value: msg.value}();
         // Approves adapter to take the WETH amount
-        GemJoinLike(apt).gem().approve(address(apt), msg.value);
+        GemJoinLike(apt).gem().approve(charter, msg.value);
         // Joins WETH collateral into the vat
         CharterLike(charter).join(apt, usr, msg.value);
     }
@@ -201,7 +201,7 @@ contract DssProxyActionsCharter is Common {
         // Gets token from the user's wallet
         GemJoinLike(apt).gem().transferFrom(msg.sender, address(this), amt);
         // Approves adapter to take the token amount
-        GemJoinLike(apt).gem().approve(apt, amt);
+        GemJoinLike(apt).gem().approve(charter, amt);
         // Joins token collateral into the vat
         CharterLike(charter).join(apt, usr, amt);
     }
