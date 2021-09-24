@@ -54,6 +54,7 @@ methods {
     managedGemJoin.ilk() returns (bytes32) envfree
     ilk() => DISPATCHER(true)
     join(address, uint256) => DISPATCHER(true)
+    exit(address, address, uint256) => DISPATCHER(true)
 
     // DSToken methods
     token.decimals() returns (uint256) envfree
@@ -321,7 +322,28 @@ rule join_proxy_already_exists_revert(address gemJoin, address usr, uint256 val)
            "join_proxy_already_exists_revert does not cover all revert conditions");
 }
 
-// TODO: exit spec, skipping for now b/c probably affected by same bug as join spec
+rule exit(address gemJoin, address usr, uint256 val) {
+    require(vat() == theVat);
+    require(token.decimals() == 18);
+    require(managedGemJoin.vat() == theVat);
+    require(managedGemJoin.gem() == token);
+    require(managedGemJoin.dec() == token.decimals());
+    require(gemJoin == managedGemJoin);
+
+    address proxyAddr = proxy(usr);
+
+    bytes32 ilk = managedGemJoin.ilk();
+    uint256 pre_gemBal = theVat.gem(ilk, proxyAddr);
+    uint256 pre_tokenBal = token.balanceOf(usr);
+
+    env e;
+    exit(e, gemJoin, usr, val);
+
+    uint256 post_gemBal = theVat.gem(ilk, proxyAddr);
+    assert(post_gemBal == pre_gemBal - val, "exit did not remove collateral as expected");
+    uint256 post_tokenBal = token.balanceOf(usr);
+    assert(post_tokenBal == pre_tokenBal + val, "exit did not send tokens to the expected address");
+}
 
 rule frob_proxy_already_exists_w_vow_proxy_all_distinct(address u, address v, address w, int256 dink, int256 dart) {
     require(vat() == theVat);
