@@ -75,6 +75,11 @@ interface JugLike {
     function drip(bytes32) external returns (uint256);
 }
 
+interface HopeLike {
+    function hope(address) external;
+    function nope(address) external;
+}
+
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // WARNING: These functions meant to be used as a a library for a DSProxy. Some are unsafe if you call them directly.
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -207,25 +212,17 @@ contract DssProxyActionsCharter is Common {
     }
 
     function hope(
-        address charter, // TODO: does it have to be charter?
+        address target,
         address usr
     ) public {
-        CharterLike(charter).hope(usr);
+        HopeLike(target).hope(usr);
     }
 
     function nope(
-        address charter,
+        address target,
         address usr
     ) public {
-        CharterLike(charter).nope(usr);
-    }
-
-    function getOrCreateProxy(address charter) public returns (address urp) {
-        urp = CharterLike(charter).getOrCreateProxy(address(this));
-    }
-
-    function getOrCreateProxy(address charter, address usr) public returns (address urp) {
-        urp = CharterLike(charter).getOrCreateProxy(usr);
+        HopeLike(target).nope(usr);
     }
 
     function flux(
