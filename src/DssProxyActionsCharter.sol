@@ -207,7 +207,7 @@ contract DssProxyActionsCharter is Common {
     }
 
     function hope(
-        address charter,
+        address charter, // TODO: does it have to be charter?
         address usr
     ) public {
         CharterLike(charter).hope(usr);
@@ -364,6 +364,10 @@ contract DssProxyActionsCharter is Common {
         address urn = CharterLike(charter).getOrCreateProxy(address(this));
 
         daiJoin_join(daiJoin, wad);
+
+        if (VatLike(vat).can(address(this), address(charter)) == 0) {
+            VatLike(vat).hope(charter);
+        }
         frob(charter, ilk, 0, _getWipeDart(vat, wad * RAY, urn, ilk));
     }
 
@@ -377,6 +381,10 @@ contract DssProxyActionsCharter is Common {
         (, uint256 art) = VatLike(vat).urns(ilk, urn);
 
         daiJoin_join(daiJoin, _getWipeAllWad(vat, urn, ilk));
+
+        if (VatLike(vat).can(address(this), address(charter)) == 0) {
+            VatLike(vat).hope(charter);
+        }
         frob(charter, ilk, 0, -int256(art));
     }
 
@@ -441,7 +449,10 @@ contract DssProxyActionsCharter is Common {
         // Joins DAI amount into the vat
         daiJoin_join(daiJoin, wadD);
         // Paybacks debt to the CDP and unlocks WETH amount from it
-        frob(charter, ilk, -toInt256(wadC),  _getWipeDart(vat, VatLike(vat).dai(address(this)), urn, ilk));
+        if (VatLike(vat).can(address(this), address(charter)) == 0) {
+            VatLike(vat).hope(charter);
+        }
+        frob(charter, ilk, -toInt256(wadC), _getWipeDart(vat, VatLike(vat).dai(address(this)), urn, ilk));
         // Exits WETH amount to proxy address as a token
         CharterLike(charter).exit(ethJoin, address(this), wadC);
         // Converts WETH to ETH
@@ -464,6 +475,9 @@ contract DssProxyActionsCharter is Common {
         // Joins DAI amount into the vat
         daiJoin_join(daiJoin, _getWipeAllWad(vat, urn, ilk));
         // Paybacks debt to the CDP and unlocks WETH amount from it
+        if (VatLike(vat).can(address(this), address(charter)) == 0) {
+            VatLike(vat).hope(charter);
+        }
         frob(charter, ilk, -toInt256(wadC), -int256(art));
         // Exits WETH amount to proxy address as a token
         CharterLike(charter).exit(ethJoin, address(this), wadC);
@@ -488,9 +502,12 @@ contract DssProxyActionsCharter is Common {
         daiJoin_join(daiJoin, wadD);
         uint256 wadC = convertTo18(gemJoin, amtC);
         // Paybacks debt to the CDP and unlocks token amount from it
+        if (VatLike(vat).can(address(this), address(charter)) == 0) {
+            VatLike(vat).hope(charter);
+        }
         frob(charter, ilk, -toInt256(wadC), _getWipeDart(vat, VatLike(vat).dai(address(this)), urn, ilk));
         // Exits token amount to the user's wallet as a token
-        CharterLike(charter).exit(gemJoin, address(this), wadC);
+        CharterLike(charter).exit(gemJoin, msg.sender, amtC);
     }
 
     function wipeAllAndFreeGem(
@@ -508,9 +525,12 @@ contract DssProxyActionsCharter is Common {
         daiJoin_join(daiJoin, _getWipeAllWad(vat, urn, ilk));
         uint256 wadC = convertTo18(gemJoin, amtC);
         // Paybacks debt to the CDP and unlocks token amount from it
+        if (VatLike(vat).can(address(this), address(charter)) == 0) {
+            VatLike(vat).hope(charter);
+        }
         frob(charter, ilk, -toInt256(wadC), -int256(art));
         // Exits token amount to the user's wallet as a token
-        CharterLike(charter).exit(gemJoin, address(this), amtC);
+        CharterLike(charter).exit(gemJoin, msg.sender, amtC);
     }
 }
 
