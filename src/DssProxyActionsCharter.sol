@@ -48,6 +48,7 @@ interface VatLike {
     function urns(bytes32, address) external view returns (uint256, uint256);
     function hope(address) external;
     function move(address, address, uint256) external;
+    function flux(bytes32, address, address, uint256) external;
 }
 
 interface GemJoinLike {
@@ -567,7 +568,13 @@ contract DssProxyActionsEndCharter is Common {
         address ethJoin,
         address end
     ) public {
-        uint256 wad = _free(charter, end, GemJoinLike(ethJoin).ilk());
+        VatLike vat = VatLike(CharterLike(charter).vat());
+        address urn = CharterLike(charter).getOrCreateProxy(address(this));
+        bytes32 ilk = GemJoinLike(ethJoin).ilk();
+        uint256 wad = _free(charter, end, ilk);
+
+        // Flux to the proxy's manager proxy, so it can be pulled out with the managed gem join
+        vat.flux(ilk, address(this), urn, wad);
         // Exits WETH amount to proxy address as a token
         CharterLike(charter).exit(ethJoin, address(this), wad);
         // Converts WETH to ETH
@@ -581,7 +588,14 @@ contract DssProxyActionsEndCharter is Common {
         address gemJoin,
         address end
     ) public {
-        uint256 amt = _free(charter, end, GemJoinLike(gemJoin).ilk()) / 10 ** (18 - GemJoinLike(gemJoin).dec());
+        VatLike vat = VatLike(CharterLike(charter).vat());
+        address urn = CharterLike(charter).getOrCreateProxy(address(this));
+        bytes32 ilk = GemJoinLike(gemJoin).ilk();
+        uint256 wad = _free(charter, end, ilk);
+        uint256 amt = wad / 10 ** (18 - GemJoinLike(gemJoin).dec());
+
+        // Flux to the proxy's manager proxy, so it can be pulled out with the managed gem join
+        vat.flux(ilk, address(this), urn, wad);
         // Exits token amount to the user's wallet as a token
         CharterLike(charter).exit(gemJoin, msg.sender, amt);
     }
@@ -607,10 +621,16 @@ contract DssProxyActionsEndCharter is Common {
         bytes32 ilk,
         uint256 wad
     ) public {
+        VatLike vat = VatLike(CharterLike(charter).vat());
+        address urn = CharterLike(charter).getOrCreateProxy(address(this));
         EndLike(end).cash(ilk, wad);
         uint256 wadC = mul(wad, EndLike(end).fix(ilk)) / RAY;
+
+        // Flux to the proxy's manager proxy, so it can be pulled out with the managed gem join
+        vat.flux(ilk, address(this), urn, wadC);
         // Exits WETH amount to proxy address as a token
-        CharterLike(charter).exit(ethJoin, address(this), wadC);
+        CharterLike(charter).exit(ethJoin, address(this), wadC); // this fails
+
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wadC);
         // Sends ETH back to the user's wallet
@@ -624,9 +644,15 @@ contract DssProxyActionsEndCharter is Common {
         bytes32 ilk,
         uint256 wad
     ) public {
+        VatLike vat = VatLike(CharterLike(charter).vat());
+        address urn = CharterLike(charter).getOrCreateProxy(address(this));
+
         EndLike(end).cash(ilk, wad);
         // Exits token amount to the user's wallet as a token
-        uint256 amt = mul(wad, EndLike(end).fix(ilk)) / RAY / 10 ** (18 - GemJoinLike(gemJoin).dec());
+        uint256 wadC = mul(wad, EndLike(end).fix(ilk)) / RAY;
+        uint256 amt = wadC / 10 ** (18 - GemJoinLike(gemJoin).dec());
+
+        vat.flux(ilk, address(this), urn, wadC);
         CharterLike(charter).exit(gemJoin, msg.sender, amt);
     }
 }

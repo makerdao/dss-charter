@@ -492,7 +492,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         (inkV, artV) = vat.urns("ETH", charterProxy);
         assertEq(inkV, 0);
         assertEq(artV, 0);
-        uint256 remainInkVal = 2 ether - 300 * end.tag("ETH") / 10 ** 8; // 2 ETH (deposited) - 300 DAI debt * ETH cage price
+        uint256 remainInkVal = 2 ether - 300 * end.tag("ETH") / 10 ** 9; // 2 ETH (deposited) - 300 DAI debt * ETH cage price
         assertEq(address(this).balance, prevBalanceETH + remainInkVal);
 
         uint256 prevBalanceWBTC = wbtc.balanceOf(address(this));
@@ -500,7 +500,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         (inkV, artV) = vat.urns("WBTC", charterProxy);
         assertEq(inkV, 0);
         assertEq(artV, 0);
-        remainInkVal = (1 ether - 5 * end.tag("WBTC") / 10 ** 8) / 10 ** 8; // 1 WBTC (deposited) - 5 DAI debt * WBTC cage price
+        remainInkVal = (1 ether - 5 * end.tag("WBTC") / 10 ** 9) / 10 ** 10; // 1 WBTC (deposited) - 5 DAI debt * WBTC cage price
         assertEq(wbtc.balanceOf(address(this)), prevBalanceWBTC + remainInkVal);
 
         end.thaw();
@@ -508,11 +508,11 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         end.flow("ETH");
         end.flow("WBTC");
 
-        dai.approve(address(proxy), 310 ether);
-        this.end_pack(address(daiJoin), address(end), 310 ether);
+        dai.approve(address(proxy), 305 ether);
+        this.end_pack(address(daiJoin), address(end), 305 ether);
 
-        this.end_cashETH(address(manager), address(ethManagedJoin), address(end), "ETH", 310 ether);
-        this.end_cashGem(address(manager), address(wbtcJoin), address(end), "WBTC", 310 ether);
+        this.end_cashETH(address(manager), address(ethManagedJoin), address(end), "ETH", 305 ether);
+        this.end_cashGem(address(manager), address(wbtcJoin), address(end), "WBTC", 305 ether);
 
         assertEq(address(this).balance, prevBalanceETH + 2 ether - 1); // (-1 rounding)
         assertEq(wbtc.balanceOf(address(this)), prevBalanceWBTC + 1 * 10 ** 8 - 1); // (-1 rounding)
