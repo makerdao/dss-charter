@@ -333,6 +333,7 @@ contract DssProxyActionsCharter is Common {
         CharterLike(charter).exit(gemJoin, msg.sender, amt);
     }
 
+    // TODO: take OFs into account
     function draw(
         address charter,
         bytes32 ilk,
@@ -365,7 +366,7 @@ contract DssProxyActionsCharter is Common {
         if (VatLike(vat).can(address(this), address(charter)) == 0) {
             VatLike(vat).hope(charter);
         }
-        frob(charter, ilk, 0, _getWipeDart(vat, wad * RAY, urn, ilk));
+        frob(charter, ilk, 0, _getWipeDart(vat, VatLike(vat).dai(address(this)), urn, ilk));
     }
 
     function wipeAll(
@@ -385,6 +386,7 @@ contract DssProxyActionsCharter is Common {
         frob(charter, ilk, 0, -int256(art));
     }
 
+    // TODO: take OFs into account
     function lockETHAndDraw(
         address charter,
         address jug,

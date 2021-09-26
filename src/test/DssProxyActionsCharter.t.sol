@@ -325,12 +325,10 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(art("ETH", charterProxy), mul(200 ether, RAY) / (1.05 * 10 ** 27) + 1);
     }
 
-    // TODO: this fails because of left dust!
     function testWipeAllAfterDrip() public {
         this.file(address(jug), bytes32("ETH"), bytes32("duty"), uint256(1.05 * 10 ** 27));
         hevm.warp(now + 1);
         jug.drip("ETH");
-
         this.lockETH{value: 2 ether}(address(manager), address(ethManagedJoin));
         this.draw(address(manager), "ETH", address(jug), address(daiJoin), 300 ether);
         dai.approve(address(proxy), 300 ether);
@@ -338,12 +336,10 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(art("ETH", charterProxy), 0);
     }
 
-    // TODO: this fails because of left dust!
     function testWipeAllAfterDrip2() public {
         this.file(address(jug), bytes32("ETH"), bytes32("duty"), uint256(1.05 * 10 ** 27));
         hevm.warp(now + 1);
         jug.drip("ETH");
-
         uint256 times = 30;
         this.lockETH{value: 2 ether * times}(address(manager), address(ethManagedJoin));
         for (uint256 i = 0; i < times; i++) {
