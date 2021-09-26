@@ -133,7 +133,7 @@ contract ProxyCalls {
 }
 
 contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
-    CharterManagerImp manager;
+    CharterManagerImp charter;
     address charterProxy;
 
     ManagedGemJoin ethManagedJoin;
@@ -173,12 +173,12 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         // Deploy CharterManager
         CharterManager base = new CharterManager();
         base.setImplementation(address(new CharterManagerImp(address(vat), address(vow), address(spotter))));
-        manager = CharterManagerImp(address(base));
+        charter = CharterManagerImp(address(base));
 
-        ethManagedJoin.rely(address(manager));
-        ethManagedJoin.deny(address(this));    // Only access should be through manager
-        wbtcJoin.rely(address(manager));
-        wbtcJoin.deny(address(this));    // Only access should be through manager
+        ethManagedJoin.rely(address(charter));
+        ethManagedJoin.deny(address(this));    // Only access should be through charter
+        wbtcJoin.rely(address(charter));
+        wbtcJoin.deny(address(this));    // Only access should be through charter
 
         // Deploy proxy factory and create a proxy
         DSProxyFactory factory = new DSProxyFactory();
@@ -186,7 +186,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         dssProxyActions = address(new DssProxyActionsCharter());
         dssProxyActionsEnd = address(new DssProxyActionsEndCharter());
         proxy = DSProxy(registry.build());
-        charterProxy = manager.getOrCreateProxy(address(proxy));
+        charterProxy = charter.getOrCreateProxy(address(proxy));
     }
 
     function ink(bytes32 ilk, address urn) public view returns (uint256 inkV) {
@@ -209,28 +209,28 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
     function testFlux() public {
         assertEq(dai.balanceOf(address(this)), 0);
         realWeth.deposit{value: 1 ether}();
-        realWeth.approve(address(manager), uint256(-1));
-        manager.join(address(ethManagedJoin), address(proxy), 1 ether);
+        realWeth.approve(address(charter), uint256(-1));
+        charter.join(address(ethManagedJoin), address(proxy), 1 ether);
         assertEq(vat.gem("ETH", address(this)), 0);
         assertEq(vat.gem("ETH", charterProxy), 1 ether);
 
-        this.flux(address(manager), "ETH", address(this), 0.75 ether);
-        assertEq(vat.gem("ETH", manager.getOrCreateProxy(address(this))), 0.75 ether);
+        this.flux(address(charter), "ETH", address(this), 0.75 ether);
+        assertEq(vat.gem("ETH", charter.getOrCreateProxy(address(this))), 0.75 ether);
         assertEq(vat.gem("ETH", charterProxy), 0.25 ether);
     }
 
     function testFrob() public {
         assertEq(dai.balanceOf(address(this)), 0);
         realWeth.deposit{value: 1 ether}();
-        realWeth.approve(address(manager), uint256(-1));
-        manager.join(address(ethManagedJoin), address(proxy), 1 ether);
+        realWeth.approve(address(charter), uint256(-1));
+        charter.join(address(ethManagedJoin), address(proxy), 1 ether);
 
-        this.frob(address(manager), "ETH", 0.5 ether, 60 ether);
+        this.frob(address(charter), "ETH", 0.5 ether, 60 ether);
         assertEq(vat.gem("ETH", charterProxy), 0.5 ether);
         assertEq(vat.dai(address(proxy)), mul(RAY, 60 ether));
         assertEq(vat.dai(address(this)), 0);
 
-        this.move(address(manager), address(this), mul(RAY, 60 ether));
+        this.move(address(charter), address(this), mul(RAY, 60 ether));
         assertEq(vat.dai(address(proxy)), 0);
         assertEq(vat.dai(address(this)), mul(RAY, 60 ether));
 
@@ -242,7 +242,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
     function testLockETH() public {
         uint256 initialBalance = address(this).balance;
         assertEq(ink("ETH", charterProxy), 0);
-        this.lockETH{value: 2 ether}(address(manager), address(ethManagedJoin));
+        this.lockETH{value: 2 ether}(address(charter), address(ethManagedJoin));
         assertEq(ink("ETH", charterProxy), 2 ether);
         assertEq(address(this).balance, initialBalance - 2 ether);
     }
@@ -251,15 +251,15 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         wbtc.approve(address(proxy), 2 * 10 ** 8);
         assertEq(ink("WBTC", charterProxy), 0);
         uint256 prevBalance = wbtc.balanceOf(address(this));
-        this.lockGem(address(manager), address(wbtcJoin), 2 * 10 ** 8);
+        this.lockGem(address(charter), address(wbtcJoin), 2 * 10 ** 8);
         assertEq(ink("WBTC", charterProxy), 2 ether);
         assertEq(wbtc.balanceOf(address(this)), prevBalance - 2 * 10 ** 8);
     }
 
     function testFreeETH() public {
         uint256 initialBalance = address(this).balance;
-        this.lockETH{value: 2 ether}(address(manager), address(ethManagedJoin));
-        this.freeETH(address(manager), address(ethManagedJoin), 1 ether);
+        this.lockETH{value: 2 ether}(address(charter), address(ethManagedJoin));
+        this.freeETH(address(charter), address(ethManagedJoin), 1 ether);
         assertEq(ink("ETH", charterProxy), 1 ether);
         assertEq(address(this).balance, initialBalance - 1 ether);
     }
@@ -268,16 +268,16 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         wbtc.approve(address(proxy), 2 * 10 ** 8);
         assertEq(ink("WBTC", charterProxy), 0);
         uint256 prevBalance = wbtc.balanceOf(address(this));
-        this.lockGem(address(manager), address(wbtcJoin), 2 * 10 ** 8);
-        this.freeGem(address(manager), address(wbtcJoin), 1 * 10 ** 8);
+        this.lockGem(address(charter), address(wbtcJoin), 2 * 10 ** 8);
+        this.freeGem(address(charter), address(wbtcJoin), 1 * 10 ** 8);
         assertEq(ink("WBTC", charterProxy),  1 ether);
         assertEq(wbtc.balanceOf(address(this)), prevBalance - 1 * 10 ** 8);
     }
 
     function testDraw() public {
-        this.lockETH{value: 2 ether}(address(manager), address(ethManagedJoin));
+        this.lockETH{value: 2 ether}(address(charter), address(ethManagedJoin));
         assertEq(dai.balanceOf(address(this)), 0);
-        this.draw(address(manager), "ETH", address(jug), address(daiJoin), 300 ether);
+        this.draw(address(charter), "ETH", address(jug), address(daiJoin), 300 ether);
         assertEq(dai.balanceOf(address(this)), 300 ether);
         assertEq(art("ETH", charterProxy), 300 ether);
     }
@@ -287,27 +287,27 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         hevm.warp(now + 1);
         jug.drip("ETH");
 
-        this.lockETH{value: 2 ether}(address(manager), address(ethManagedJoin));
+        this.lockETH{value: 2 ether}(address(charter), address(ethManagedJoin));
         assertEq(dai.balanceOf(address(this)), 0);
-        this.draw(address(manager), "ETH", address(jug), address(daiJoin), 300 ether);
+        this.draw(address(charter), "ETH", address(jug), address(daiJoin), 300 ether);
         assertEq(dai.balanceOf(address(this)), 300 ether);
         assertEq(art("ETH", charterProxy), mul(300 ether, RAY) / (1.05 * 10 ** 27) + 1); // Extra wei due rounding
     }
 
     function testWipe() public {
-        this.lockETH{value: 2 ether}(address(manager), address(ethManagedJoin));
-        this.draw(address(manager), "ETH", address(jug), address(daiJoin), 300 ether);
+        this.lockETH{value: 2 ether}(address(charter), address(ethManagedJoin));
+        this.draw(address(charter), "ETH", address(jug), address(daiJoin), 300 ether);
         dai.approve(address(proxy), 100 ether);
-        this.wipe(address(manager), "ETH", address(daiJoin), 100 ether);
+        this.wipe(address(charter), "ETH", address(daiJoin), 100 ether);
         assertEq(dai.balanceOf(address(this)), 200 ether);
         assertEq(art("ETH", charterProxy), 200 ether);
     }
 
     function testWipeAll() public {
-        this.lockETH{value: 2 ether}(address(manager), address(ethManagedJoin));
-        this.draw(address(manager), "ETH", address(jug), address(daiJoin), 300 ether);
+        this.lockETH{value: 2 ether}(address(charter), address(ethManagedJoin));
+        this.draw(address(charter), "ETH", address(jug), address(daiJoin), 300 ether);
         dai.approve(address(proxy), 300 ether);
-        this.wipeAll(address(manager), "ETH", address(daiJoin));
+        this.wipeAll(address(charter), "ETH", address(daiJoin));
         assertEq(dai.balanceOf(address(this)), 0);
         assertEq(art("ETH", charterProxy), 0);
     }
@@ -317,10 +317,10 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         hevm.warp(now + 1);
         jug.drip("ETH");
 
-        this.lockETH{value: 2 ether}(address(manager), address(ethManagedJoin));
-        this.draw(address(manager), "ETH", address(jug), address(daiJoin), 300 ether);
+        this.lockETH{value: 2 ether}(address(charter), address(ethManagedJoin));
+        this.draw(address(charter), "ETH", address(jug), address(daiJoin), 300 ether);
         dai.approve(address(proxy), 100 ether);
-        this.wipe(address(manager), "ETH", address(daiJoin), 100 ether);
+        this.wipe(address(charter), "ETH", address(daiJoin), 100 ether);
         assertEq(dai.balanceOf(address(this)), 200 ether);
         assertEq(art("ETH", charterProxy), mul(200 ether, RAY) / (1.05 * 10 ** 27) + 1);
     }
@@ -329,10 +329,10 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         this.file(address(jug), bytes32("ETH"), bytes32("duty"), uint256(1.05 * 10 ** 27));
         hevm.warp(now + 1);
         jug.drip("ETH");
-        this.lockETH{value: 2 ether}(address(manager), address(ethManagedJoin));
-        this.draw(address(manager), "ETH", address(jug), address(daiJoin), 300 ether);
+        this.lockETH{value: 2 ether}(address(charter), address(ethManagedJoin));
+        this.draw(address(charter), "ETH", address(jug), address(daiJoin), 300 ether);
         dai.approve(address(proxy), 300 ether);
-        this.wipe(address(manager), "ETH", address(daiJoin), 300 ether);
+        this.wipe(address(charter), "ETH", address(daiJoin), 300 ether);
         assertEq(art("ETH", charterProxy), 0);
     }
 
@@ -341,12 +341,12 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         hevm.warp(now + 1);
         jug.drip("ETH");
         uint256 times = 30;
-        this.lockETH{value: 2 ether * times}(address(manager), address(ethManagedJoin));
+        this.lockETH{value: 2 ether * times}(address(charter), address(ethManagedJoin));
         for (uint256 i = 0; i < times; i++) {
-            this.draw(address(manager), "ETH", address(jug), address(daiJoin), 300 ether);
+            this.draw(address(charter), "ETH", address(jug), address(daiJoin), 300 ether);
         }
         dai.approve(address(proxy), 300 ether * times);
-        this.wipe(address(manager), "ETH", address(daiJoin), 300 ether * times);
+        this.wipe(address(charter), "ETH", address(daiJoin), 300 ether * times);
         assertEq(art("ETH", charterProxy), 0);
     }
 
@@ -354,7 +354,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         uint256 initialBalance = address(this).balance;
         assertEq(ink("ETH", charterProxy), 0);
         assertEq(dai.balanceOf(address(this)), 0);
-        this.lockETHAndDraw{value: 2 ether}(address(manager), address(jug), address(ethManagedJoin), address(daiJoin), 300 ether);
+        this.lockETHAndDraw{value: 2 ether}(address(charter), address(jug), address(ethManagedJoin), address(daiJoin), 300 ether);
         assertEq(ink("ETH", charterProxy), 2 ether);
         assertEq(dai.balanceOf(address(this)), 300 ether);
         assertEq(address(this).balance, initialBalance - 2 ether);
@@ -364,7 +364,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         wbtc.approve(address(proxy), 3 * 10 ** 8);
         assertEq(ink("WBTC", charterProxy), 0);
         uint256 prevBalance = wbtc.balanceOf(address(this));
-        this.lockGemAndDraw(address(manager), address(jug), address(wbtcJoin), address(daiJoin), 3 * 10 ** 8, 50 ether);
+        this.lockGemAndDraw(address(charter), address(jug), address(wbtcJoin), address(daiJoin), 3 * 10 ** 8, 50 ether);
         assertEq(ink("WBTC", charterProxy), 3 ether);
         assertEq(dai.balanceOf(address(this)), 50 ether);
         assertEq(wbtc.balanceOf(address(this)), prevBalance - 3 * 10 ** 8);
@@ -372,9 +372,9 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
 
     function testWipeAndFreeETH() public {
         uint256 initialBalance = address(this).balance;
-        this.lockETHAndDraw{value: 2 ether}(address(manager), address(jug), address(ethManagedJoin), address(daiJoin), 300 ether);
+        this.lockETHAndDraw{value: 2 ether}(address(charter), address(jug), address(ethManagedJoin), address(daiJoin), 300 ether);
         dai.approve(address(proxy), 250 ether);
-        this.wipeAndFreeETH(address(manager), address(ethManagedJoin), address(daiJoin), 1.5 ether, 250 ether);
+        this.wipeAndFreeETH(address(charter), address(ethManagedJoin), address(daiJoin), 1.5 ether, 250 ether);
         assertEq(ink("ETH", charterProxy), 0.5 ether);
         assertEq(art("ETH", charterProxy), 50 ether);
         assertEq(dai.balanceOf(address(this)), 50 ether);
@@ -383,9 +383,9 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
 
     function testWipeAllAndFreeETH() public {
         uint256 initialBalance = address(this).balance;
-        this.lockETHAndDraw{value: 2 ether}(address(manager), address(jug), address(ethManagedJoin), address(daiJoin), 300 ether);
+        this.lockETHAndDraw{value: 2 ether}(address(charter), address(jug), address(ethManagedJoin), address(daiJoin), 300 ether);
         dai.approve(address(proxy), 300 ether);
-        this.wipeAllAndFreeETH(address(manager), address(ethManagedJoin), address(daiJoin), 1.5 ether);
+        this.wipeAllAndFreeETH(address(charter), address(ethManagedJoin), address(daiJoin), 1.5 ether);
         assertEq(ink("ETH", charterProxy), 0.5 ether);
         assertEq(art("ETH", charterProxy), 0);
         assertEq(dai.balanceOf(address(this)), 0);
@@ -395,9 +395,9 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
     function testWipeAndFreeGem() public {
         wbtc.approve(address(proxy), 2 * 10 ** 8);
         uint256 prevBalance = wbtc.balanceOf(address(this));
-        this.lockGemAndDraw(address(manager), address(jug), address(wbtcJoin), address(daiJoin), 2 * 10 ** 8, 10 ether);
+        this.lockGemAndDraw(address(charter), address(jug), address(wbtcJoin), address(daiJoin), 2 * 10 ** 8, 10 ether);
         dai.approve(address(proxy), 8 ether);
-        this.wipeAndFreeGem(address(manager), address(wbtcJoin), address(daiJoin), 1.5 * 10 ** 8, 8 ether);
+        this.wipeAndFreeGem(address(charter), address(wbtcJoin), address(daiJoin), 1.5 * 10 ** 8, 8 ether);
         assertEq(ink("WBTC", charterProxy), 0.5 ether);
         assertEq(art("WBTC", charterProxy), 2 ether);
         assertEq(dai.balanceOf(address(this)), 2 ether);
@@ -407,9 +407,9 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
     function testWipeAllAndFreeGem() public {
         wbtc.approve(address(proxy), 2 * 10 ** 8);
         uint256 prevBalance = wbtc.balanceOf(address(this));
-        this.lockGemAndDraw(address(manager), address(jug), address(wbtcJoin), address(daiJoin), 2 * 10 ** 8, 10 ether);
+        this.lockGemAndDraw(address(charter), address(jug), address(wbtcJoin), address(daiJoin), 2 * 10 ** 8, 10 ether);
         dai.approve(address(proxy), 10 ether);
-        this.wipeAllAndFreeGem(address(manager), address(wbtcJoin), address(daiJoin), 1.5 * 10 ** 8);
+        this.wipeAllAndFreeGem(address(charter), address(wbtcJoin), address(daiJoin), 1.5 * 10 ** 8);
         assertEq(ink("WBTC", charterProxy), 0.5 ether);
         assertEq(art("WBTC", charterProxy), 0);
         assertEq(dai.balanceOf(address(this)), 0);
@@ -425,7 +425,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
     }
 
     function testQuit() public {
-        this.lockETHAndDraw{value: 1 ether}(address(manager), address(jug), address(ethManagedJoin), address(daiJoin), 50 ether);
+        this.lockETHAndDraw{value: 1 ether}(address(charter), address(jug), address(ethManagedJoin), address(daiJoin), 50 ether);
 
         assertEq(ink("ETH", charterProxy), 1 ether);
         assertEq(art("ETH", charterProxy), 50 ether);
@@ -433,8 +433,8 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(art("ETH", address(proxy)), 0);
 
         cheat_cage();
-        this.hope(address(vat), address(manager));
-        this.quit(address(manager), "ETH", address(proxy));
+        this.hope(address(vat), address(charter));
+        this.quit(address(charter), "ETH", address(proxy));
 
         assertEq(ink("ETH", charterProxy), 0);
         assertEq(art("ETH", charterProxy), 0);
@@ -444,36 +444,35 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
 
     function testExitEth() public {
         realWeth.deposit{value: 1 ether}();
-        realWeth.approve(address(manager), uint256(-1));
-        manager.join(address(ethManagedJoin), address(proxy), 1 ether);
+        realWeth.approve(address(charter), uint256(-1));
+        charter.join(address(ethManagedJoin), address(proxy), 1 ether);
         assertEq(vat.gem("ETH", address(this)), 0);
         assertEq(vat.gem("ETH", charterProxy), 1 ether);
 
         uint256 prevBalance = address(this).balance;
-        this.exitETH(address(manager), address(ethManagedJoin), 1 ether);
+        this.exitETH(address(charter), address(ethManagedJoin), 1 ether);
         assertEq(vat.gem("ETH", address(this)), 0);
         assertEq(vat.gem("ETH", charterProxy), 0);
         assertEq(address(this).balance, prevBalance + 1 ether);
     }
 
     function testExitGem() public {
-        wbtc.approve(address(manager), 2 * 10 ** 8);
-        manager.join(address(wbtcJoin), address(proxy), 2 * 10 ** 8);
+        wbtc.approve(address(charter), 2 * 10 ** 8);
+        charter.join(address(wbtcJoin), address(proxy), 2 * 10 ** 8);
         assertEq(vat.gem("WBTC", address(this)), 0);
         assertEq(vat.gem("WBTC", charterProxy), 2 ether);
 
         uint256 prevBalance = wbtc.balanceOf(address(this));
-        this.exitGem(address(manager), address(wbtcJoin), 2 * 10 ** 8);
+        this.exitGem(address(charter), address(wbtcJoin), 2 * 10 ** 8);
         assertEq(vat.gem("WBTC", address(this)), 0);
         assertEq(vat.gem("WBTC", charterProxy), 0);
         assertEq(wbtc.balanceOf(address(this)), prevBalance + 2 * 10 ** 8);
     }
 
-    // TODO: test fails
     function testEnd() public {
-        this.lockETHAndDraw{value: 2 ether}(address(manager), address(jug), address(ethManagedJoin), address(daiJoin), 300 ether);
+        this.lockETHAndDraw{value: 2 ether}(address(charter), address(jug), address(ethManagedJoin), address(daiJoin), 300 ether);
         wbtc.approve(address(proxy), 1 * 10 ** 8);
-        this.lockGemAndDraw(address(manager), address(jug), address(wbtcJoin), address(daiJoin), 1 * 10 ** 8, 5 ether);
+        this.lockGemAndDraw(address(charter), address(jug), address(wbtcJoin), address(daiJoin), 1 * 10 ** 8, 5 ether);
 
         this.cage(address(end));
         end.cage("ETH");
@@ -488,7 +487,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(artV, 5 ether);
 
         uint256 prevBalanceETH = address(this).balance;
-        this.end_freeETH(address(manager), address(ethManagedJoin), address(end));
+        this.end_freeETH(address(charter), address(ethManagedJoin), address(end));
         (inkV, artV) = vat.urns("ETH", charterProxy);
         assertEq(inkV, 0);
         assertEq(artV, 0);
@@ -496,7 +495,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(address(this).balance, prevBalanceETH + remainInkVal);
 
         uint256 prevBalanceWBTC = wbtc.balanceOf(address(this));
-        this.end_freeGem(address(manager), address(wbtcJoin), address(end));
+        this.end_freeGem(address(charter), address(wbtcJoin), address(end));
         (inkV, artV) = vat.urns("WBTC", charterProxy);
         assertEq(inkV, 0);
         assertEq(artV, 0);
@@ -511,8 +510,8 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         dai.approve(address(proxy), 305 ether);
         this.end_pack(address(daiJoin), address(end), 305 ether);
 
-        this.end_cashETH(address(manager), address(ethManagedJoin), address(end), "ETH", 305 ether);
-        this.end_cashGem(address(manager), address(wbtcJoin), address(end), "WBTC", 305 ether);
+        this.end_cashETH(address(charter), address(ethManagedJoin), address(end), "ETH", 305 ether);
+        this.end_cashGem(address(charter), address(wbtcJoin), address(end), "WBTC", 305 ether);
 
         assertEq(address(this).balance, prevBalanceETH + 2 ether - 1); // (-1 rounding)
         assertEq(wbtc.balanceOf(address(this)), prevBalanceWBTC + 1 * 10 ** 8 - 1); // (-1 rounding)
