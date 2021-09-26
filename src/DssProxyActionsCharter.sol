@@ -39,6 +39,9 @@ interface CharterLike {
     function frob(bytes32, address, address, address, int256, int256) external;
     function flux(bytes32, address, address, uint256) external;
     function quit(bytes32 ilk, address dst) external;
+    function gate(bytes32) external view returns (uint256);
+    function Nib(bytes32) external view returns (uint256);
+    function nib(bytes32, address) external view returns (uint256);
 }
 
 interface VatLike {
@@ -86,6 +89,7 @@ interface HopeLike {
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 contract Common {
+    uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;
 
     // Internal functions
@@ -129,6 +133,21 @@ contract DssProxyActionsCharter is Common {
             amt,
             10 ** (18 - GemJoinLike(gemJoin).dec())
         );
+    }
+
+    function _getNet(address charter, address vat, bytes32 ilk, int256 dart, uint256 wad) internal returns (uint256 wadN) {
+        uint256 nib = (CharterLike(charter).gate(ilk) == 1) ?
+            CharterLike(charter).nib(ilk, address(this)) :
+            CharterLike(charter).Nib(ilk);
+
+        if (nib > 0) {
+            (, uint256 rate,,,) = VatLike(vat).ilks(ilk);
+            uint256 dtab = mul(rate, uint256(dart)); // rad
+            uint256 coin = mul(dtab, nib) / WAD;     // rad
+            wadN = sub(dtab, coin) / RAY;
+        } else {
+            wadN = wad;
+        }
     }
 
     function _getDrawDart(
@@ -334,7 +353,6 @@ contract DssProxyActionsCharter is Common {
         CharterLike(charter).exit(gemJoin, msg.sender, amt);
     }
 
-    // TODO: take OFs into account
     function draw(
         address charter,
         bytes32 ilk,
@@ -345,12 +363,14 @@ contract DssProxyActionsCharter is Common {
         address vat = CharterLike(charter).vat();
 
         // Generates debt in the CDP
-        frob(charter, ilk, 0, _getDrawDart(vat, jug, ilk, wad));
+        int256 dart = _getDrawDart(vat, jug, ilk, wad);
+        frob(charter, ilk, 0, dart);
         if (VatLike(vat).can(address(this), address(daiJoin)) == 0) {
             VatLike(vat).hope(daiJoin);
         }
+
         // Exits DAI to the user's wallet as a token
-        DaiJoinLike(daiJoin).exit(msg.sender, wad);
+        DaiJoinLike(daiJoin).exit(msg.sender, _getNet(charter, vat, ilk, dart, wad));
     }
 
     function wipe(
@@ -387,7 +407,6 @@ contract DssProxyActionsCharter is Common {
         frob(charter, ilk, 0, -int256(art));
     }
 
-    // TODO: take OFs into account
     function lockETHAndDraw(
         address charter,
         address jug,
@@ -401,13 +420,15 @@ contract DssProxyActionsCharter is Common {
         // Receives ETH amount, converts it to WETH and joins it into the vat
         ethJoin_join(charter, ethJoin);
         // Locks WETH amount into the CDP and generates debt
-        frob(charter, ilk, toInt256(msg.value), _getDrawDart(vat, jug, ilk, wadD));
+        int256 dart = _getDrawDart(vat, jug, ilk, wadD);
+        frob(charter, ilk, toInt256(msg.value), dart);
         // Allows adapter to access to proxy's DAI balance in the vat
         if (VatLike(vat).can(address(this), address(daiJoin)) == 0) {
             VatLike(vat).hope(daiJoin);
         }
+
         // Exits DAI to the user's wallet as a token
-        DaiJoinLike(daiJoin).exit(msg.sender, wadD);
+        DaiJoinLike(daiJoin).exit(msg.sender, _getNet(charter, vat, ilk, dart, wadD));
     }
 
     function lockGemAndDraw(
@@ -431,8 +452,9 @@ contract DssProxyActionsCharter is Common {
         if (VatLike(vat).can(address(this), address(daiJoin)) == 0) {
             VatLike(vat).hope(daiJoin);
         }
+
         // Exits DAI to the user's wallet as a token
-        DaiJoinLike(daiJoin).exit(msg.sender, wadD);
+        DaiJoinLike(daiJoin).exit(msg.sender, _getNet(charter, vat, ilk, dart, wadD));
     }
 
     function wipeAndFreeETH(
