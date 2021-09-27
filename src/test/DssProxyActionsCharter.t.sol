@@ -302,6 +302,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(dai.balanceOf(address(this)), 0);
         this.draw(address(charter), "ETH", address(jug), address(daiJoin), 300 ether);
         assertEq(dai.balanceOf(address(this)), 297 ether);
+        assertEq(vat.dai(address(vow)), mul(RAY, 3 ether));
         assertEq(art("ETH", charterProxy), 300 ether);
     }
 
@@ -318,6 +319,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(dai.balanceOf(address(this)), 0);
         this.draw(address(charter), "ETH", address(jug), address(daiJoin), 300 ether);
         assertEq(dai.balanceOf(address(this)), 285 ether);
+        assertEq(vat.dai(address(vow)) / RAY, 15 ether);
         assertEq(art("ETH", charterProxy), mul(300 ether, RAY) / (1.05 * 10 ** 27) + 1); // Extra wei due rounding
     }
 
@@ -397,6 +399,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         this.lockETHAndDraw{value: 2 ether}(address(charter), address(jug), address(ethManagedJoin), address(daiJoin), 300 ether);
         assertEq(ink("ETH", charterProxy), 2 ether);
         assertEq(dai.balanceOf(address(this)), 294 ether);
+        assertEq(vat.dai(address(vow)), mul(RAY, 6 ether));
         assertEq(address(this).balance, initialBalance - 2 ether);
     }
 
@@ -420,6 +423,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         this.lockGemAndDraw(address(charter), address(jug), address(wbtcJoin), address(daiJoin), 3 * 10 ** 8, 50 ether);
         assertEq(ink("WBTC", charterProxy), 3 ether);
         assertEq(dai.balanceOf(address(this)), 49.5 ether);
+        assertEq(vat.dai(address(vow)), mul(RAY, 0.5 ether));
         assertEq(wbtc.balanceOf(address(this)), prevBalance - 3 * 10 ** 8);
     }
 
