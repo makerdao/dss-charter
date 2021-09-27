@@ -10,7 +10,7 @@ In the alternative permissioned mode, each vault owner is chartered a debt ceili
 When accuring debt (during `frob`) the manager contract validates the user's ceiling (if exists) and draws a portion of the created debt as system fee.
 A minimal collateralization ratio (`Peace` / `peace`) is enforced upon drawing debt or withdrawing collateral.
 
-As in CropJoin, liquidations can only be done by users who created a proxy through the manager.
+As in CropJoin, liquidations can only be done by users who created a UrnProxy through the manager.
 
 ### Terms
 
@@ -20,3 +20,8 @@ As in CropJoin, liquidations can only be done by users who created a proxy throu
 - `Peace`: minimal collateralization ratio (for vaults in unpermissioned ilks).
 - `peace`: per user minimal collateralization ratio (for vaults in permissioned ilks).
 - `uline` : per user debt ceiling for a specific ilk (for permissioned ilks).
+
+### Proxy Actions
+
+This repository also include proxy action functions, located in the DssProxyActionsCharter and DssProxyActionsEndCharter contracts. They are to be used via ds-proxy, similarly to [dss-proxy-actions](https://github.com/makerdao/dss-proxy-actions).
+As opposed to the original actions, these functions interact with the CharterManager and are not based on dss-cdp-manager as a CDP registry.
