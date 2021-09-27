@@ -507,18 +507,17 @@ rule flux_proxies_already_exist_identical_addresses_revert(bytes32 ilk, address 
            "flux_proxies_already_exist_identical_addresses_revert does not cover all revert conditions");
 }
 
-rule quit_proxy_already_exists(bytes32 ilk, address dst) {
+rule quit_proxy_already_exists_proxy_not_dst(bytes32 ilk, address dst) {
     require(vat() == theVat);
 
-    // define initial state of the destination Vault to simplify assertions
     uint256 pre_ink;
     uint256 pre_art;
     pre_ink, pre_art = theVat.urns(ilk, dst);
-    require(pre_ink == 0 && pre_art == 0);
 
     env e;
     address proxyAddr = proxy(e.msg.sender);
     require(proxyAddr != 0);
+    require(proxyAddr != dst);
     uint256 ink;
     uint256 art;
     ink, art = theVat.urns(ilk, proxyAddr);
@@ -527,5 +526,49 @@ rule quit_proxy_already_exists(bytes32 ilk, address dst) {
     uint256 post_ink;
     uint256 post_art;
     post_ink, post_art = theVat.urns(ilk, dst);
-    assert(post_ink == ink && post_art == art, "quit did not transfer Vault balances as expected");
+    assert(post_ink == ink + pre_ink && post_art == art + pre_art, "quit did not modify Vault balances as expected");
+}
+
+rule quit_proxy_already_exists_proxy_is_dst(bytes32 ilk, address dst) {
+    require(vat() == theVat);
+
+    env e;
+    address proxyAddr = proxy(e.msg.sender);
+    require(proxyAddr != 0);
+    require(proxyAddr == dst);
+    uint256 ink;
+    uint256 art;
+    ink, art = theVat.urns(ilk, proxyAddr);
+    quit(e, ilk, dst);
+
+    uint256 post_ink;
+    uint256 post_art;
+    post_ink, post_art = theVat.urns(ilk, dst);
+    assert(post_ink == ink && post_art == art, "quit did not modify Vault balances as expected");
+}
+
+rule quit_proxy_already_exists_revert(bytes32 ilk, address dst) {
+    require(vat() == theVat);
+
+    uint256 vatLive = theVat.live();
+
+    env e;
+    address proxyAddr = proxy(e.msg.sender);
+    require(proxyAddr != 0);
+    uint256 ink;
+    uint256 art;
+    ink, art = theVat.urns(ilk, proxyAddr);
+    quit@withrevert(e, ilk, dst);
+
+    bool revert1 = e.msg.value > 0;
+    assert(revert1 => lastReverted, "quit did not revert when sent ETH");
+
+    bool revert2 = vatLive != 0;
+    assert(revert2 => lastReverted, "quit did not revert when the Vat was still live");
+
+    bool revert3 = ink <= 2^255 - 1;
+    assert(revert3 => lastReverted, "quit did not revert when ink was too large to cast to int256");
+
+    bool revert4 = art <= 2^255 - 1;
+    assert(revert4 => lastReverted, "quit did not revert when art was too large to cast to int256");
 }
