@@ -591,18 +591,20 @@ rule quit_proxy_already_exists_proxy_not_dst_revert(bytes32 ilk, address dst) {
     bool revert4 = art > 2^255 - 1;
     assert(revert4 => lastReverted, "quit did not revert when art was too large to cast to int256");
 
-    bool dustViolation = dst_art + art > 0 && dst_art + art < dust;
-    bool forkReverts = dst_ink + ink > max_uint256 ||
-                       dst_art + art > max_uint256 ||
-                       (dst_art + art) * rate > max_uint256 ||
-                       (dst_ink + ink) > max_uint256 ||
+    uint256 v_ink = dst_ink + ink;
+    uint256 v_art = dst_art + art;
+    uint256 v_tab = v_art * rate;
+    bool dustViolation = v_tab > 0 && v_tab < dust;
+    bool forkReverts = dst_ink + ink > max_uint256 ||  // v_ink cannot be used here
+                       dst_art + art > max_uint256 ||  // v_art cannot be used here
+                       v_art * rate > max_uint256 ||
                        !proxyConsents ||
                        !dstConsents ||
-                       (dst_art + art) * rate > (dst_ink + ink) * spot ||
+                       v_ink * spot > max_uint256 ||
+                       v_tab > v_ink * spot ||
                        dustViolation;
-//                       ((dst_art + art) != 0 && (dst_art + art) < dust);
     assert(forkReverts => lastReverted, "quit did not revert when fork reverted");
 
-//    assert(lastReverted => revert1 || revert2 || revert3 || revert4 || forkReverts,
-//           "quit_proxy_already_exists_proxy_not_dst_revert does not cover all reverting cases");
+    assert(lastReverted => revert1 || revert2 || revert3 || revert4 || forkReverts,
+           "quit_proxy_already_exists_proxy_not_dst_revert does not cover all reverting cases");
 }
