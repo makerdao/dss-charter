@@ -547,17 +547,36 @@ rule quit_proxy_already_exists_proxy_is_dst(bytes32 ilk, address dst) {
     assert(post_ink == ink && post_art == art, "quit did not modify Vault balances as expected");
 }
 
-rule quit_proxy_already_exists_revert(bytes32 ilk, address dst) {
+rule quit_proxy_already_exists_proxy_not_dst_revert(bytes32 ilk, address dst) {
     require(vat() == theVat);
 
     uint256 vatLive = theVat.live();
 
+    uint256 dst_ink;
+    uint256 dst_art;
+    dst_ink, dst_art = theVat.urns(ilk, dst);
+
+    uint256 util1; uint256 util2;
+    uint256 rate;
+    uint256 spot;
+    uint256 dust;
+    util1, rate, spot, util2, dust = theVat.ilks(ilk);
+    require(rate >= 10^27);  // satisfied in real contracts, and out-of-scope here anyway
+
     env e;
+
     address proxyAddr = proxy(e.msg.sender);
     require(proxyAddr != 0);
+    require(proxyAddr != dst);
+
+    require(proxyAddr != currentContract);
+    bool proxyConsents = theVat.can(proxyAddr, currentContract) == 1;
+    bool dstConsents = dst == currentContract || theVat.can(dst, currentContract) == 1;
+
     uint256 ink;
     uint256 art;
     ink, art = theVat.urns(ilk, proxyAddr);
+
     quit@withrevert(e, ilk, dst);
 
     bool revert1 = e.msg.value > 0;
@@ -566,9 +585,24 @@ rule quit_proxy_already_exists_revert(bytes32 ilk, address dst) {
     bool revert2 = vatLive != 0;
     assert(revert2 => lastReverted, "quit did not revert when the Vat was still live");
 
-    bool revert3 = ink <= 2^255 - 1;
+    bool revert3 = ink > 2^255 - 1;
     assert(revert3 => lastReverted, "quit did not revert when ink was too large to cast to int256");
 
-    bool revert4 = art <= 2^255 - 1;
+    bool revert4 = art > 2^255 - 1;
     assert(revert4 => lastReverted, "quit did not revert when art was too large to cast to int256");
+
+    bool dustViolation = dst_art + art > 0 && dst_art + art < dust;
+    bool forkReverts = dst_ink + ink > max_uint256 ||
+                       dst_art + art > max_uint256 ||
+                       (dst_art + art) * rate > max_uint256 ||
+                       (dst_ink + ink) > max_uint256 ||
+                       !proxyConsents ||
+                       !dstConsents ||
+                       (dst_art + art) * rate > (dst_ink + ink) * spot ||
+                       dustViolation;
+//                       ((dst_art + art) != 0 && (dst_art + art) < dust);
+    assert(forkReverts => lastReverted, "quit did not revert when fork reverted");
+
+//    assert(lastReverted => revert1 || revert2 || revert3 || revert4 || forkReverts,
+//           "quit_proxy_already_exists_proxy_not_dst_revert does not cover all reverting cases");
 }
