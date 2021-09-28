@@ -608,3 +608,55 @@ rule quit_proxy_already_exists_proxy_not_dst_revert(bytes32 ilk, address dst) {
     assert(lastReverted => revert1 || revert2 || revert3 || revert4 || forkReverts,
            "quit_proxy_already_exists_proxy_not_dst_revert does not cover all reverting cases");
 }
+
+rule quit_proxy_already_exists_proxy_is_dst_revert(bytes32 ilk, address dst) {
+    require(vat() == theVat);
+
+    uint256 vatLive = theVat.live();
+
+    uint256 util1; uint256 util2;
+    uint256 rate;
+    uint256 spot;
+    uint256 dust;
+    util1, rate, spot, util2, dust = theVat.ilks(ilk);
+    require(rate >= 10^27);  // satisfied in real contracts, and out-of-scope here anyway
+
+    env e;
+
+    address proxyAddr = proxy(e.msg.sender);
+    require(proxyAddr != 0);
+    require(proxyAddr == dst);
+
+    require(proxyAddr != currentContract);
+    bool proxyConsents = theVat.can(proxyAddr, currentContract) == 1;
+
+    uint256 ink;
+    uint256 art;
+    ink, art = theVat.urns(ilk, proxyAddr);
+
+    quit@withrevert(e, ilk, dst);
+
+    bool revert1 = e.msg.value > 0;
+    assert(revert1 => lastReverted, "quit did not revert when sent ETH");
+
+    bool revert2 = vatLive != 0;
+    assert(revert2 => lastReverted, "quit did not revert when the Vat was still live");
+
+    bool revert3 = ink > 2^255 - 1;
+    assert(revert3 => lastReverted, "quit did not revert when ink was too large to cast to int256");
+
+    bool revert4 = art > 2^255 - 1;
+    assert(revert4 => lastReverted, "quit did not revert when art was too large to cast to int256");
+
+    uint256 tab = art * rate;
+    bool dustViolation = tab > 0 && tab < dust;
+    bool forkReverts = art * rate > max_uint256 ||  // tab cannot be used here
+                       !proxyConsents ||
+                       ink * spot > max_uint256 ||
+                       tab > ink * spot ||
+                       dustViolation;
+    assert(forkReverts => lastReverted, "quit did not revert when fork reverted");
+
+    assert(lastReverted => revert1 || revert2 || revert3 || revert4 || forkReverts,
+           "quit_proxy_already_exists_proxy_is_dst_revert does not cover all reverting cases");
+}
