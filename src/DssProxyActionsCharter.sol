@@ -96,13 +96,13 @@ contract Common {
 
     // Public functions
 
-    function daiJoin_join(address apt, uint256 wad) public {
+    function daiJoin_join(address daiJoin, uint256 wad) public {
         // Gets DAI from the user's wallet
-        DaiJoinLike(apt).dai().transferFrom(msg.sender, address(this), wad);
+        DaiJoinLike(daiJoin).dai().transferFrom(msg.sender, address(this), wad);
         // Approves adapter to take the DAI amount
-        DaiJoinLike(apt).dai().approve(apt, wad);
+        DaiJoinLike(daiJoin).dai().approve(daiJoin, wad);
         // Joins DAI into the vat
-        DaiJoinLike(apt).join(address(this), wad);
+        DaiJoinLike(daiJoin).join(address(this), wad);
     }
 }
 
@@ -217,22 +217,24 @@ contract DssProxyActionsCharter is Common {
         GemLike(gem).transfer(dst, amt);
     }
 
-    function ethJoin_join(address charter, address apt) public payable {
+    function ethJoin_join(address charter, address ethJoin) public payable {
+        GemLike gem = GemJoinLike(ethJoin).gem();
         // Wraps ETH in WETH
-        GemJoinLike(apt).gem().deposit{value: msg.value}();
+        gem.deposit{value: msg.value}();
         // Approves adapter to take the WETH amount
-        GemJoinLike(apt).gem().approve(charter, msg.value);
+        gem.approve(charter, msg.value);
         // Joins WETH collateral into the vat
-        CharterLike(charter).join(apt, address(this), msg.value);
+        CharterLike(charter).join(ethJoin, address(this), msg.value);
     }
 
-    function gemJoin_join(address charter, address apt, uint256 amt) public {
+    function gemJoin_join(address charter, address gemJoin, uint256 amt) public {
+        GemLike gem = GemJoinLike(gemJoin).gem();
         // Gets token from the user's wallet
-        GemJoinLike(apt).gem().transferFrom(msg.sender, address(this), amt);
+        gem.transferFrom(msg.sender, address(this), amt);
         // Approves adapter to take the token amount
-        GemJoinLike(apt).gem().approve(charter, amt);
+        gem.approve(charter, amt);
         // Joins token collateral into the vat
-        CharterLike(charter).join(apt, address(this), amt);
+        CharterLike(charter).join(gemJoin, address(this), amt);
     }
 
     function hope(
@@ -309,10 +311,8 @@ contract DssProxyActionsCharter is Common {
         address ethJoin,
         uint256 wad
     ) public {
-        bytes32 ilk = GemJoinLike(ethJoin).ilk();
-
         // Unlocks WETH amount from the CDP
-        frob(charter, ilk, -toInt256(wad), 0);
+        frob(charter, GemJoinLike(ethJoin).ilk(), -toInt256(wad), 0);
         // Exits WETH amount to proxy address as a token
         CharterLike(charter).exit(ethJoin, address(this), wad);
         // Converts WETH to ETH
@@ -326,11 +326,8 @@ contract DssProxyActionsCharter is Common {
         address gemJoin,
         uint256 amt
     ) public {
-        bytes32 ilk = GemJoinLike(gemJoin).ilk();
-        uint256 wad = convertTo18(gemJoin, amt);
-
         // Unlocks token amount from the CDP
-        frob(charter, ilk, -toInt256(wad), 0);
+        frob(charter, GemJoinLike(gemJoin).ilk(), -toInt256(convertTo18(gemJoin, amt)), 0);
         // Exits token amount to the user's wallet as a token
         CharterLike(charter).exit(gemJoin, msg.sender, amt);
     }
