@@ -137,8 +137,8 @@ contract DssProxyActionsCharter is Common {
         bytes32 ilk,
         int256 dart,
         uint256 wad
-    ) internal returns (uint256 wadN) {
-        // Attain origination fee from ther charter manager
+    ) internal view returns (uint256 wadN) {
+        // Attain origination fee from the charter manager
         uint256 nib = (CharterLike(charter).gate(ilk) == 1) ?
             CharterLike(charter).nib(ilk, address(this)) :
             CharterLike(charter).Nib(ilk);
@@ -213,7 +213,7 @@ contract DssProxyActionsCharter is Common {
 
     // Public functions
 
-    function transfer(address gem, address dst, uint256 amt) public {
+    function transfer(address gem, address dst, uint256 amt) external {
         GemLike(gem).transfer(dst, amt);
     }
 
@@ -240,14 +240,14 @@ contract DssProxyActionsCharter is Common {
     function hope(
         address obj,
         address usr
-    ) public {
+    ) external {
         HopeLike(obj).hope(usr);
     }
 
     function nope(
         address obj,
         address usr
-    ) public {
+    ) external {
         HopeLike(obj).nope(usr);
     }
 
@@ -256,7 +256,7 @@ contract DssProxyActionsCharter is Common {
         bytes32 ilk,
         address dst,
         uint256 wad
-    ) public {
+    ) external {
         CharterLike(charter).flux(ilk, address(this), dst, wad);
     }
 
@@ -264,7 +264,7 @@ contract DssProxyActionsCharter is Common {
         address charter,
         address dst,
         uint256 rad
-    ) public {
+    ) external {
         VatLike(CharterLike(charter).vat()).move(address(this), dst, rad);
     }
 
@@ -281,14 +281,14 @@ contract DssProxyActionsCharter is Common {
         address charter,
         bytes32 ilk,
         address dst
-    ) public {
+    ) external {
         CharterLike(charter).quit(ilk, dst);
     }
 
     function lockETH(
         address charter,
         address ethJoin
-    ) public payable {
+    ) external payable {
         // Receives ETH amount, converts it to WETH and joins it into the vat
         ethJoin_join(charter, ethJoin);
         // Locks WETH amount into the CDP
@@ -299,7 +299,7 @@ contract DssProxyActionsCharter is Common {
         address charter,
         address gemJoin,
         uint256 amt
-    ) public {
+    ) external {
         // Takes token amount from user's wallet and joins into the vat
         gemJoin_join(charter, gemJoin, amt);
         // Locks token amount into the CDP
@@ -310,7 +310,7 @@ contract DssProxyActionsCharter is Common {
         address charter,
         address ethJoin,
         uint256 wad
-    ) public {
+    ) external {
         // Unlocks WETH amount from the CDP
         frob(charter, GemJoinLike(ethJoin).ilk(), -toInt256(wad), 0);
         // Exits WETH amount to proxy address as a token
@@ -325,7 +325,7 @@ contract DssProxyActionsCharter is Common {
         address charter,
         address gemJoin,
         uint256 amt
-    ) public {
+    ) external {
         // Unlocks token amount from the CDP
         frob(charter, GemJoinLike(gemJoin).ilk(), -toInt256(convertTo18(gemJoin, amt)), 0);
         // Exits token amount to the user's wallet as a token
@@ -336,7 +336,7 @@ contract DssProxyActionsCharter is Common {
         address charter,
         address ethJoin,
         uint256 wad
-    ) public {
+    ) external {
         // Exits WETH amount to proxy address as a token
         CharterLike(charter).exit(ethJoin, address(this), wad);
         // Converts WETH to ETH
@@ -349,7 +349,7 @@ contract DssProxyActionsCharter is Common {
         address charter,
         address gemJoin,
         uint256 amt
-    ) public {
+    ) external {
         // Exits token amount to the user's wallet as a token
         CharterLike(charter).exit(gemJoin, msg.sender, amt);
     }
@@ -360,7 +360,7 @@ contract DssProxyActionsCharter is Common {
         address jug,
         address daiJoin,
         uint256 wad
-    ) public {
+    ) external {
         address vat = CharterLike(charter).vat();
 
         // Generates debt in the CDP
@@ -379,7 +379,7 @@ contract DssProxyActionsCharter is Common {
         bytes32 ilk,
         address daiJoin,
         uint256 wad
-    ) public {
+    ) external {
         address vat = CharterLike(charter).vat();
         address urn = CharterLike(charter).getOrCreateProxy(address(this));
 
@@ -397,7 +397,7 @@ contract DssProxyActionsCharter is Common {
         address charter,
         bytes32 ilk,
         address daiJoin
-    ) public {
+    ) external {
         address vat = CharterLike(charter).vat();
         address urn = CharterLike(charter).getOrCreateProxy(address(this));
         (, uint256 art) = VatLike(vat).urns(ilk, urn);
@@ -418,7 +418,7 @@ contract DssProxyActionsCharter is Common {
         address ethJoin,
         address daiJoin,
         uint256 wadD
-    ) public payable {
+    ) external payable {
         address vat = CharterLike(charter).vat();
         bytes32 ilk = GemJoinLike(ethJoin).ilk();
 
@@ -442,7 +442,7 @@ contract DssProxyActionsCharter is Common {
         address daiJoin,
         uint256 amtC,
         uint256 wadD
-    ) public {
+    ) external {
         address vat = CharterLike(charter).vat();
         bytes32 ilk = GemJoinLike(gemJoin).ilk();
 
@@ -466,7 +466,7 @@ contract DssProxyActionsCharter is Common {
         address daiJoin,
         uint256 wadC,
         uint256 wadD
-    ) public {
+    ) external {
         address vat = CharterLike(charter).vat();
         address urn = CharterLike(charter).getOrCreateProxy(address(this));
         bytes32 ilk = GemJoinLike(ethJoin).ilk();
@@ -492,7 +492,7 @@ contract DssProxyActionsCharter is Common {
         address ethJoin,
         address daiJoin,
         uint256 wadC
-    ) public {
+    ) external {
         address vat = CharterLike(charter).vat();
         address urn = CharterLike(charter).getOrCreateProxy(address(this));
         bytes32 ilk = GemJoinLike(ethJoin).ilk();
@@ -520,7 +520,7 @@ contract DssProxyActionsCharter is Common {
         address daiJoin,
         uint256 amtC,
         uint256 wadD
-    ) public {
+    ) external {
         address vat = CharterLike(charter).vat();
         address urn = CharterLike(charter).getOrCreateProxy(address(this));
         bytes32 ilk = GemJoinLike(gemJoin).ilk();
@@ -543,7 +543,7 @@ contract DssProxyActionsCharter is Common {
         address gemJoin,
         address daiJoin,
         uint256 amtC
-    ) public {
+    ) external {
         address vat = CharterLike(charter).vat();
         address urn = CharterLike(charter).getOrCreateProxy(address(this));
         bytes32 ilk = GemJoinLike(gemJoin).ilk();
@@ -596,7 +596,7 @@ contract DssProxyActionsEndCharter is Common {
         address charter,
         address ethJoin,
         address end
-    ) public {
+    ) external {
         VatLike vat = VatLike(CharterLike(charter).vat());
         address urn = CharterLike(charter).getOrCreateProxy(address(this));
         bytes32 ilk = GemJoinLike(ethJoin).ilk();
@@ -617,7 +617,7 @@ contract DssProxyActionsEndCharter is Common {
         address charter,
         address gemJoin,
         address end
-    ) public {
+    ) external {
         VatLike vat = VatLike(CharterLike(charter).vat());
         address urn = CharterLike(charter).getOrCreateProxy(address(this));
         bytes32 ilk = GemJoinLike(gemJoin).ilk();
@@ -635,7 +635,7 @@ contract DssProxyActionsEndCharter is Common {
         address daiJoin,
         address end,
         uint256 wad
-    ) public {
+    ) external {
         VatLike vat = DaiJoinLike(daiJoin).vat();
 
         // Joins DAI amount into the vat
@@ -653,7 +653,7 @@ contract DssProxyActionsEndCharter is Common {
         address end,
         bytes32 ilk,
         uint256 wad
-    ) public {
+    ) external {
         VatLike vat = VatLike(CharterLike(charter).vat());
         address urn = CharterLike(charter).getOrCreateProxy(address(this));
 
@@ -675,7 +675,7 @@ contract DssProxyActionsEndCharter is Common {
         address end,
         bytes32 ilk,
         uint256 wad
-    ) public {
+    ) external {
         VatLike vat = VatLike(CharterLike(charter).vat());
         address urn = CharterLike(charter).getOrCreateProxy(address(this));
 

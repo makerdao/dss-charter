@@ -23,5 +23,5 @@ As in CropJoin, liquidations can only be done by users who created a UrnProxy th
 
 ### Proxy Actions
 
-This repository also include proxy action functions, located in the DssProxyActionsCharter and DssProxyActionsEndCharter contracts. They are to be used via ds-proxy, similarly to [dss-proxy-actions](https://github.com/makerdao/dss-proxy-actions).
+This repository also includes proxy action functions, located in the DssProxyActionsCharter and DssProxyActionsEndCharter contracts. They are to be used via ds-proxy, similarly to [dss-proxy-actions](https://github.com/makerdao/dss-proxy-actions).
 As opposed to the original actions, these functions interact with the CharterManager and are not based on dss-cdp-manager as a CDP registry.
