@@ -117,7 +117,7 @@ contract CharterManagerImp {
 
     // --- Implementation Storage ---
     mapping (address => address) public proxy; // UrnProxy per user
-    mapping (address => mapping (address => uint256)) public can;
+    mapping (address => mapping(address => uint256))  public can;
     mapping (bytes32 => uint256)                      public gate;  // allow only permissioned vaults
     mapping (bytes32 => uint256)                      public Nib;   // fee percentage for un-permissioned vaults [wad]
     mapping (bytes32 => mapping(address => uint256))  public nib;   // fee percentage for permissioned vaults    [wad]
