@@ -124,7 +124,8 @@ contract DssProxyActionsCharter is Common {
     }
 
     function _convertTo18(address gemJoin, uint256 amt) internal returns (uint256 wad) {
-        // For those collaterals that have less than 18 decimals precision we need to do the conversion before passing to frob function
+        // For those collaterals that have less than 18 decimals precision we
+        //   need to do the conversion before passing to frob function
         // Adapters will automatically handle the difference of precision
         wad = _mul(
             amt,
@@ -167,11 +168,14 @@ contract DssProxyActionsCharter is Common {
         // Gets DAI balance of the urn in the vat
         uint256 dai = VatLike(vat).dai(address(this));
 
-        // If there was already enough DAI in the vat balance, just exits it without adding more debt
+        // If there was already enough DAI in the vat balance,
+        //    just exits it without adding more debt
         if (dai < _mul(wad, RAY)) {
-            // Calculates the needed dart so together with the existing dai in the vat is enough to exit wad amount of DAI tokens
+            // Calculates the needed dart so together with the existing dai in
+            //    the vat is enough to exit wad amount of DAI tokens
             dart = _toInt256(_sub(_mul(wad, RAY), dai) / rate);
-            // This is needed due lack of precision. It might need to sum an extra dart wei (for the given DAI wad amount)
+            // This is needed due lack of precision. It might need to sum an
+            //    extra dart wei (for the given DAI wad amount)
             dart = _mul(uint256(dart), rate) < _mul(wad, RAY) ? dart + 1 : dart;
         }
     }
@@ -189,7 +193,8 @@ contract DssProxyActionsCharter is Common {
 
         // Uses the whole dai balance in the vat to reduce the debt
         dart = _toInt256(dai / rate);
-        // Checks the calculated dart is not higher than urn.art (total debt), otherwise uses its value
+        // Checks the calculated dart is not higher than urn.art (total debt),
+        //    otherwise uses its value
         dart = uint256(dart) <= art ? - dart : - _toInt256(art);
     }
 

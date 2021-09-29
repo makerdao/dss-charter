@@ -222,7 +222,9 @@ contract CharterManagerImp {
         ManagedGemJoinLike(gemJoin).exit(urp, usr, val);
     }
 
-    function draw(bytes32 ilk, address u, address urp, address w, int256 dink, int256 dart, uint256 rate, uint256 _gate) internal {
+    function draw(
+        bytes32 ilk, address u, address urp, address w, int256 dink, int256 dart, uint256 rate, uint256 _gate
+        ) internal {
         uint256 _nib = (_gate == 1) ? nib[ilk][u] : Nib[ilk];
         uint256 dtab = mul(rate, uint256(dart)); // rad
         uint256 coin = wmul(dtab, _nib);         // rad
@@ -232,7 +234,9 @@ contract CharterManagerImp {
         VatLike(vat).move(urp, vow, coin);
     }
 
-    function validate(bytes32 ilk, address u, address urp, int256 dink, int256 dart, uint256 rate, uint256 spot, uint256 _gate) internal {
+    function validate(
+        bytes32 ilk, address u, address urp, int256 dink, int256 dart, uint256 rate, uint256 spot, uint256 _gate
+        ) internal {
         if (dart > 0 || dink < 0) {
             // vault is more risky than before
 
