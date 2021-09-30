@@ -741,10 +741,12 @@ contract CharterManagerTest is TestBase {
         assertEq(gem.balanceOf(address(adapter)), 10 * 1e6);
         assertEq(a.gems(), 10 * 1e18);
 
+        address impl = CharterManager(address(manager)).implementation();
         // Replace implementation
         CharterManager(address(manager)).setImplementation(
             address(new CharterManagerImp(address(vat), address(vow), address(spotter)))
         );
+        assertTrue(impl != CharterManager(address(manager)).implementation());
 
         a.exit(10 * 1e6);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
