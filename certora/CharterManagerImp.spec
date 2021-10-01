@@ -328,6 +328,7 @@ rule join_proxy_already_exists_revert(address gemJoin, address usr, uint256 val)
            "join_proxy_already_exists_revert does not cover all revert conditions");
 }
 
+// Fails due to limitation of tooling.
 rule exit(address gemJoin, address usr, uint256 val) {
     require(vat() == theVat);
     require(token.decimals() == 18);
@@ -350,6 +351,8 @@ rule exit(address gemJoin, address usr, uint256 val) {
     uint256 post_tokenBal = token.balanceOf(usr);
     assert(post_tokenBal == pre_tokenBal + val, "exit did not send tokens to the expected address");
 }
+
+// Revert spec for exit would have the same problem.
 
 rule frob_proxy_already_exists_w_vow_proxy_all_distinct(address u, address v, address w, int256 dink, int256 dart) {
     require(vat() == theVat);
@@ -392,8 +395,6 @@ rule frob_proxy_already_exists_w_vow_proxy_all_distinct(address u, address v, ad
 //    assert(theVat.dai(w) == preWDai + dtab - coin, "dai drawn not sent to destination");
     if (dart > 0) {
         assert(theVat.dai(w) >= preWDai, "dai of destination should not decrease if dart > 0");
-// The following assertion causes a timeout.
-//        assert(theVat.dai(w) > preWDai, "dai of destination should increase if dart > 0");
         assert(theVat.dai(w) <= preWDai + dtab, "dai of destination should not increase by more than dtab if dart > 0");
     } else {
 // The following assertion causes a timeout.
