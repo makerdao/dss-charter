@@ -608,6 +608,37 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 20 * 1e18);
     }
 
+    function test_debt_ceiling_removal() public {
+        (Usr a,) = init_user();
+        init_ilk_gate(address(a), 0, 0, 50 * 1e45);
+
+        a.join(20 * 1e6);
+        a.frob(20 * 1e18, 20 * 1e18);
+        (uint256 ink, uint256 art) = a.urn();
+        assertEq(ink, 20 * 1e18);
+        assertEq(art, 20 * 1e18);
+        assertEq(a.dai(), 20 * 1e45);
+        assertEq(a.gems(), 0);
+
+        // remove the debt ceiling entirely
+        manager.file(ilk, address(a), "uline", 0);
+
+        // partial repay - frob out some of the funds
+        a.frob(-10 * 1e18, -15 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 10 * 1e18);
+        assertEq(art, 5 * 1e18);
+        assertEq(a.gems(), 10 * 1e18);
+        assertEq(a.dai(), 5* 1e45);
+
+        // repay remaining debt, withdraw collateral
+        a.frob(-10 * 1e18, -5 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(a.gems(), 20 * 1e18);
+    }
+
     // Non-msg.sender frobs should be disallowed for now
     function testFail_frob1() public {
         (Usr a,) = init_user();
