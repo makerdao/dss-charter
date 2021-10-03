@@ -379,6 +379,42 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 100 * 1e18);
     }
 
+    function test_exit_maintains_peace() public {
+        init_ilk_ungate(0, 3 * RAY);
+        (Usr a,) = init_user();
+        a.join(200 * 1e6);
+        assertEq(a.gems(), 200 * 1e18);
+        // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
+        a.frob(100 * 1e18, 45 * 1e18);
+        (uint256 ink, uint256 art) = a.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 45 * 1e18);
+        assertEq(a.dai(), 45 * 1e45);
+        assertEq(a.gems(), 100 * 1e18);
+
+        // check exit of unlocked gems does not affect the vault and does not prevent increasing debt
+        a.exit(100 * 1e6);
+        (ink, art) = a.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 45 * 1e18);
+        assertEq(a.dai(), 45 * 1e45);
+        assertEq(a.gems(), 0);
+
+        a.frob(0, 5 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        assertEq(a.dai(), 50 * 1e45);
+        assertEq(a.gems(), 0);
+
+        a.frob(-100 * 1e18, -50 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(a.dai(), 0);
+        assertEq(a.gems(), 100 * 1e18);
+    }
+
     function testFail_frob_ungate_below_Peace() public {
         init_ilk_ungate(0, 3 * RAY);
         (Usr a,) = init_user();
