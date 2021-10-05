@@ -148,25 +148,24 @@ contract DssProxyActionsCharter is Common {
 
         // If there was already enough DAI in the vat balance,
         //    just exits it without adding more debt
-        if (dai < _mul(wad, RAY)) {
+        uint256 rad = _mul(wad, RAY);
+        if (dai < rad) {
+            uint256 netToDraw = rad - dai; // dai < rad
 
             uint256 nib = (CharterLike(charter).gate(ilk) == 1) ?
                 CharterLike(charter).nib(ilk, address(this)) :
                 CharterLike(charter).Nib(ilk);
 
-            // Calculates missing dai to draw
-            uint256 miss = _sub(_mul(wad, RAY), dai);           // rad
-
-           // Scales up in order to account for origination fees
-            uint256 bruto = (_mul(miss, WAD) / _sub(WAD, nib)); // rad
+            // Scales up in order to account for origination fees
+            uint256 grossToDraw = _mul(netToDraw, WAD) / _sub(WAD, nib); // rad
 
             // Calculates the needed dart so together with the existing dai in the vat is enough to exit wad amount of DAI tokens
-            dart = _toInt256(bruto / rate);
+            dart = _toInt256(grossToDraw / rate);
 
             // This is needed due lack of precision. It might need to sum an extra dart wei (for the given DAI wad amount)
             uint256 dtab = _mul(rate, uint256(dart)); // rad
             uint256 coin = _mul(dtab, nib) / WAD;     // rad
-            dart = (_sub(dtab, coin) < _mul(wad, RAY)) ? dart + 1 : dart;
+            dart = (_sub(dtab, coin) < netToDraw) ? dart + 1 : dart;
         }
     }
 
