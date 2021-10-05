@@ -329,21 +329,20 @@ rule join_proxy_already_exists_revert(address gemJoin, address usr, uint256 val)
 }
 
 // Fails due to limitation of tooling.
-rule exit(address gemJoin, address usr, uint256 val) {
+rule exit_usr_not_gemJoin(address gemJoin, address usr, uint256 val) {
     require(vat() == theVat);
     require(token.decimals() == 18);
     require(managedGemJoin.vat() == theVat);
     require(managedGemJoin.gem() == token);
     require(managedGemJoin.dec() == token.decimals());
     require(gemJoin == managedGemJoin);
+    require(usr != gemJoin);
 
-    address proxyAddr = proxy(usr);
-
+    env e;
+    address proxyAddr = proxy(e.msg.sender);
     bytes32 ilk = managedGemJoin.ilk();
     uint256 pre_gemBal = theVat.gem(ilk, proxyAddr);
     uint256 pre_tokenBal = token.balanceOf(usr);
-
-    env e;
     exit(e, gemJoin, usr, val);
 
     uint256 post_gemBal = theVat.gem(ilk, proxyAddr);
