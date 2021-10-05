@@ -117,13 +117,13 @@ contract CharterManagerImp {
 
     // --- Implementation Storage ---
     mapping (address => address) public proxy; // UrnProxy per user
-    mapping (address => mapping (address => uint256)) public can;
-    mapping (bytes32 => uint256)                      public gate;  // allow only permissioned vaults
-    mapping (bytes32 => uint256)                      public Nib;   // fee percentage for un-permissioned vaults [wad]
-    mapping (bytes32 => mapping(address => uint256))  public nib;   // fee percentage for permissioned vaults    [wad]
-    mapping (bytes32 => uint256)                      public Peace; // min CR for un-permissioned vaults         [ray]
-    mapping (bytes32 => mapping(address => uint256))  public peace; // min CR for permissioned vaults            [ray]
-    mapping (bytes32 => mapping(address => uint256))  public uline; // debt ceiling for permissioned vaults      [rad]
+    mapping (address => mapping (address => uint256))  public can;
+    mapping (bytes32 => uint256)                       public gate;  // allow only permissioned vaults
+    mapping (bytes32 => uint256)                       public Nib;   // fee percentage for un-permissioned vaults [wad]
+    mapping (bytes32 => mapping (address => uint256))  public nib;   // fee percentage for permissioned vaults    [wad]
+    mapping (bytes32 => uint256)                       public Peace; // min CR for un-permissioned vaults         [ray]
+    mapping (bytes32 => mapping (address => uint256))  public peace; // min CR for permissioned vaults            [ray]
+    mapping (bytes32 => mapping (address => uint256))  public uline; // debt ceiling for permissioned vaults      [rad]
 
     address public immutable vat;
     address public immutable vow;
@@ -156,20 +156,20 @@ contract CharterManagerImp {
     uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;
 
-    function sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
+    function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
     }
-    function mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+    function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
-    function wmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = mul(x, y) / WAD;
+    function _wmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = _mul(x, y) / WAD;
     }
-    function rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = mul(x, y) / RAY;
+    function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = _mul(x, y) / RAY;
     }
-    function rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = mul(x, RAY) / y;
+    function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = _mul(x, RAY) / y;
     }
 
     // --- Auth ---
@@ -222,22 +222,26 @@ contract CharterManagerImp {
         ManagedGemJoinLike(gemJoin).exit(urp, usr, val);
     }
 
-    function draw(bytes32 ilk, address u, address urp, address w, int256 dink, int256 dart, uint256 rate, uint256 _gate) internal {
+    function _draw(
+        bytes32 ilk, address u, address urp, address w, int256 dink, int256 dart, uint256 rate, uint256 _gate
+        ) internal {
         uint256 _nib = (_gate == 1) ? nib[ilk][u] : Nib[ilk];
-        uint256 dtab = mul(rate, uint256(dart)); // rad
-        uint256 coin = wmul(dtab, _nib);         // rad
+        uint256 dtab = _mul(rate, uint256(dart)); // rad
+        uint256 coin = _wmul(dtab, _nib);         // rad
 
         VatLike(vat).frob(ilk, urp, urp, urp, dink, dart);
-        VatLike(vat).move(urp, w, sub(dtab, coin));
+        VatLike(vat).move(urp, w, _sub(dtab, coin));
         VatLike(vat).move(urp, vow, coin);
     }
 
-    function validate(bytes32 ilk, address u, address urp, int256 dink, int256 dart, uint256 rate, uint256 spot, uint256 _gate) internal {
+    function _validate(
+        bytes32 ilk, address u, address urp, int256 dink, int256 dart, uint256 rate, uint256 spot, uint256 _gate
+        ) internal {
         if (dart > 0 || dink < 0) {
             // vault is more risky than before
 
             (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
-            uint256 tab = mul(art, rate); // rad
+            uint256 tab = _mul(art, rate); // rad
 
             if (dart > 0 && _gate == 1) {
                 require(tab <= uline[ilk][u], "CharterManager/user-line-exceeded");
@@ -247,8 +251,8 @@ contract CharterManagerImp {
             if (_peace > 0) {
                 (, uint256 mat) = SpotterLike(spotter).ilks(ilk);
                 // reconstruct price, avoid un-applying par so it's accounted for when comparing to tab
-                uint256 peaceSpot = rdiv(rmul(spot, mat), _peace); // ray
-                require(tab <= mul(ink, peaceSpot), "CharterManager/below-peace-ratio");
+                uint256 peaceSpot = _rdiv(_rmul(spot, mat), _peace); // ray
+                require(tab <= _mul(ink, peaceSpot), "CharterManager/below-peace-ratio");
             }
         }
     }
@@ -262,9 +266,9 @@ contract CharterManagerImp {
         if (dart <= 0) {
             VatLike(vat).frob(ilk, urp, urp, w, dink, dart);
         } else {
-            draw(ilk, u, urp, w, dink, dart, rate, _gate);
+            _draw(ilk, u, urp, w, dink, dart, rate, _gate);
         }
-        validate(ilk, u, urp, dink, dart, rate, spot, _gate);
+        _validate(ilk, u, urp, dink, dart, rate, spot, _gate);
     }
 
     function flux(bytes32 ilk, address src, address dst, uint256 wad) external allowed(src) {

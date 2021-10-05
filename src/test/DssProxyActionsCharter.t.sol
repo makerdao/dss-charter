@@ -50,7 +50,9 @@ contract ProxyCalls {
     }
 
     function lockETH(address, address) public payable {
-        (bool success,) = address(proxy).call{value: msg.value}(abi.encodeWithSignature("execute(address,bytes)", dssProxyActions, msg.data));
+        (bool success,) = address(proxy).call{value: msg.value}(
+            abi.encodeWithSignature("execute(address,bytes)", dssProxyActions, msg.data)
+        );
         require(success, "");
     }
 
@@ -87,7 +89,9 @@ contract ProxyCalls {
     }
 
     function lockETHAndDraw(address, address, address, address, uint256) public payable {
-        (bool success,) = address(proxy).call{value: msg.value}(abi.encodeWithSignature("execute(address,bytes)", dssProxyActions, msg.data));
+        (bool success,) = address(proxy).call{value: msg.value}(
+            abi.encodeWithSignature("execute(address,bytes)", dssProxyActions, msg.data)
+        );
         require(success, "");
     }
 

@@ -799,4 +799,25 @@ contract CharterManagerTest is TestBase {
     function testFail_direct_exit() public {
         adapter.exit(address(this), address(this), 0);
     }
+
+    function test_implementation_upgrade() public {
+
+        (Usr a,) = init_user();
+        a.join(10 * 1e6);
+        assertEq(gem.balanceOf(address(a)), 190 * 1e6);
+        assertEq(gem.balanceOf(address(adapter)), 10 * 1e6);
+        assertEq(a.gems(), 10 * 1e18);
+
+        address impl = CharterManager(address(manager)).implementation();
+        // Replace implementation
+        CharterManager(address(manager)).setImplementation(
+            address(new CharterManagerImp(address(vat), address(vow), address(spotter)))
+        );
+        assertTrue(impl != CharterManager(address(manager)).implementation());
+
+        a.exit(10 * 1e6);
+        assertEq(gem.balanceOf(address(a)), 200 * 1e6);
+        assertEq(gem.balanceOf(address(adapter)), 0);
+        assertEq(a.gems(), 0);
+    }
 }
