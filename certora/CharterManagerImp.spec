@@ -253,6 +253,7 @@ rule getOrCreateProxy_proxy_already_exists(address usr) {
 // broken due to overapproximation of 10^k (fixed in staging, remove comment once the fix is pushed to production)
 rule join_proxy_already_exists(address gemJoin, address usr, uint256 val) {
     require(vat() == theVat);
+    // Limitation: need to calculate 10^(18 - decimals) for full assertions, but base and exponent must be constants.
     require(token.decimals() == 18);
     require(managedGemJoin.vat() == theVat);
     require(managedGemJoin.gem() == token);
