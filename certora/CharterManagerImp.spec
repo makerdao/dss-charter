@@ -328,7 +328,7 @@ rule join_proxy_already_exists_revert(address gemJoin, address usr, uint256 val)
            "join_proxy_already_exists_revert does not cover all revert conditions");
 }
 
-// Fails due to limitation of tooling.
+// Working in staging, remove comment when change is in production.
 rule exit_usr_not_gemJoin(address gemJoin, address usr, uint256 val) {
     require(vat() == theVat);
     require(token.decimals() == 18);
@@ -351,7 +351,52 @@ rule exit_usr_not_gemJoin(address gemJoin, address usr, uint256 val) {
     assert(post_tokenBal == pre_tokenBal + val, "exit did not send tokens to the expected address");
 }
 
-// Revert spec for exit would have the same problem.
+rule exit_usr_not_gemJoin_revert(address gemJoin, address usr, uint256 val) {
+    require(vat() == theVat);
+    require(token.decimals() == 18);
+    require(managedGemJoin.vat() == theVat);
+    require(managedGemJoin.gem() == token);
+    require(managedGemJoin.dec() == token.decimals());
+    require(gemJoin == managedGemJoin);
+    require(usr != gemJoin);
+
+    bool gemJoinIsVatWard = theVat.wards(gemJoin) == 1;
+    bool managerIsGemJoinWard = managedGemJoin.wards(currentContract) == 1;
+
+    // ignore token-related revert conditions, as that is not the code under test here
+    require(!token.stopped());
+    uint256 pre_tokenBal = token.balanceOf(gemJoin);
+    require(pre_tokenBal >= val);
+    require(val + token.balanceOf(usr) <= max_uint256);
+
+    env e;
+    address proxyAddr = proxy(e.msg.sender);
+    bytes32 ilk = managedGemJoin.ilk();
+    uint256 pre_gemBal = theVat.gem(ilk, proxyAddr);
+    exit@withrevert(e, gemJoin, usr, val);
+
+    bool revert1 = e.msg.value > 0;
+    assert(revert1 => lastReverted, "exit did not revert when sent ETH");
+
+    bool revert2 = proxyAddr == 0;
+    assert(revert2 => lastReverted, "exit did not revert when urp address was zero");
+
+    bool revert3 = !gemJoinIsVatWard;
+    assert(revert3 => lastReverted, "exit did not revert when gemJoin was not a Vat ward");
+
+    bool revert4 = !managerIsGemJoinWard;
+    assert(revert4 => lastReverted, "exit did not revert when manager was not a ward of gemJoin");
+
+    bool revert5 = pre_gemBal < val;
+    assert(revert5 => lastReverted, "exit did not revert when gem balance of proxy was less than val");
+
+    bool revert6 = val > 2^255;
+    assert(revert6 => lastReverted, "exit did not revert when amount to slip exceeded max int256");
+
+    assert(lastReverted => revert1 || revert2 || revert3 ||
+                           revert4 || revert5 || revert6,
+           "exit_usr_not_gemJoin_revert does not cover all revert conditions");
+}
 
 rule frob_proxy_already_exists_w_vow_proxy_all_distinct(address u, address v, address w, int256 dink, int256 dart) {
     require(vat() == theVat);
