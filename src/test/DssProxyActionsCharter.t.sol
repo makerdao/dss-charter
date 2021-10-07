@@ -363,8 +363,8 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         this.draw(address(charter), "ETH", address(jug), address(daiJoin), wad);
         assertEq(dai.balanceOf(address(this)), wad);
         assertEqApprox(vat.dai(address(vow)), draw * RAY * Nib / (WAD - Nib), RAD / 100);
-        uint256 art = art("ETH", charterProxy);
-        assertEqApprox(art, (draw + draw * Nib / WAD) * RAY / (RAY + rate), art / 100);
+        uint256 art_ = art("ETH", charterProxy);
+        assertEqApprox(art_, (draw + draw * Nib / WAD) * RAY / (RAY + rate), art_ / 100);
         assertLt(vat.dai(address(proxy)), RAD / 1000); // There should remain just dust
     }
 
