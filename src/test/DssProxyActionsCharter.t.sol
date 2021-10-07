@@ -201,6 +201,22 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         (,artV) = vat.urns(ilk, urn);
     }
 
+    function assertEqApprox(uint256 _a, uint256 _b, uint256 _tolerance) internal {
+        uint256 a = _a;
+        uint256 b = _b;
+        if (a < b) {
+            uint256 tmp = a;
+            a = b;
+            b = tmp;
+        }
+        if (a - b > _tolerance) {
+            emit log_bytes32("Error: Wrong `uint' value");
+            emit log_named_uint("  Expected", _b);
+            emit log_named_uint("    Actual", _a);
+            fail();
+        }
+    }
+
     function testTransfer() public {
         wbtc.transfer(address(proxy), 10);
         assertEq(wbtc.balanceOf(address(proxy)), 10);
@@ -308,6 +324,31 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(dai.balanceOf(address(this)), 300 ether);
         assertEq(vat.dai(address(vow)), 3030303030303030303040000000000000000000000000); // (300 / 0.99) * 0.01
         assertEq(art("ETH", charterProxy), 303030303030303030304); // (300 / 0.99)
+    }
+
+    function test_fuzz_drawWithFee(uint256 rate, uint256 nib, uint256 wad) public {
+        HevmStoreLike(address(hevm)).store(
+            address(vat),
+            keccak256(abi.encode(address(this), uint256(0))),
+            bytes32(uint256(1))
+        );
+        vat.file("Line", uint256(-1));
+        vat.file("ETH", "line", uint256(-1));
+        rate = rate % RAY;
+        vat.fold("ETH", address(0), int256(rate));
+        charter.file("ETH", "gate", 0);
+        nib = nib % (WAD / 10);
+        charter.file("ETH", "Nib", nib); // one percent
+
+        wad = wad % (500_000_000 * WAD) + 10_000 * WAD;
+
+        this.lockETH{value: wad / 150}(address(charter), address(ethManagedJoin));
+        assertEq(dai.balanceOf(address(this)), 0);
+        this.draw(address(charter), "ETH", address(jug), address(daiJoin), wad);
+        assertEq(dai.balanceOf(address(this)), wad);
+        assertEqApprox(vat.dai(address(vow)), wad * RAY * nib / (WAD - nib), RAD / 100);
+        uint256 art = art("ETH", charterProxy);
+        assertEqApprox(art, (wad + wad * nib / WAD) * RAY / (RAY + rate), art / 100);
     }
 
     function testDrawAfterDripWithFee() public {
