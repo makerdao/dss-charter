@@ -156,17 +156,11 @@ contract DssProxyActionsCharter is Common {
                 CharterLike(charter).nib(ilk, address(this)) :
                 CharterLike(charter).Nib(ilk);
 
-            // Scales up in order to account for origination fees
-            uint256 grossToDraw = _mul(netToDraw, WAD) / _sub(WAD, nib); // rad
-
-            // This is needed due lack of precision, it might need to sum an extra grossToDraw wei
-            grossToDraw = _mul(grossToDraw, _sub(WAD, nib)) < _mul(netToDraw, WAD) ? grossToDraw + 1 : grossToDraw;
-
             // Calculates the needed dart so together with the existing dai in the vat is enough to exit wad amount of DAI tokens
-            dart = _toInt256(grossToDraw / rate);
-
+            dart = _toInt256(_mul(netToDraw, WAD) / _sub(_mul(rate, WAD), _mul(rate, nib))); // wad
+            uint256 dtab = _mul(uint256(dart), rate);
             // This is needed due lack of precision, it might need to sum an extra dart wei
-            dart = _mul(uint256(dart), rate) < grossToDraw ? dart + 1 : dart;
+            dart = _sub(dtab, _mul(dtab, nib) / WAD) < netToDraw ? dart + 1 : dart;
         }
     }
 
