@@ -159,13 +159,14 @@ contract DssProxyActionsCharter is Common {
             // Scales up in order to account for origination fees
             uint256 grossToDraw = _mul(netToDraw, WAD) / _sub(WAD, nib); // rad
 
+            // This is needed due lack of precision, it might need to sum an extra grossToDraw wei
+            grossToDraw = _mul(grossToDraw, _sub(WAD, nib)) < _mul(netToDraw, WAD) ? grossToDraw + 1 : grossToDraw;
+
             // Calculates the needed dart so together with the existing dai in the vat is enough to exit wad amount of DAI tokens
             dart = _toInt256(grossToDraw / rate);
 
-            // This is needed due lack of precision. It might need to sum an extra dart wei (for the given DAI wad amount)
-            uint256 dtab = _mul(rate, uint256(dart)); // rad
-            uint256 coin = _mul(dtab, nib) / WAD;     // rad
-            dart = (_sub(dtab, coin) < netToDraw) ? dart + 1 : dart;
+            // This is needed due lack of precision, it might need to sum an extra dart wei
+            dart = _mul(uint256(dart), rate) < grossToDraw ? dart + 1 : dart;
         }
     }
 
