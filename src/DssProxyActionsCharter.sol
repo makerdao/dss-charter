@@ -46,6 +46,7 @@ interface VatLike {
     function dai(address) external view returns (uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
     function hope(address) external;
+    function nope(address) external;
     function move(address, address, uint256) external;
     function flux(bytes32, address, address, uint256) external;
 }
@@ -486,7 +487,7 @@ contract DssProxyActionsCharter is Common {
             _getWipeDart(
                 vat,
                 VatLike(vat).dai(address(this)),
-                CharterLike(charter).getOrCreateProxy(address(this));,
+                CharterLike(charter).getOrCreateProxy(address(this)),
                 ilk
             )
         );
