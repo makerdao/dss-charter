@@ -33,18 +33,6 @@ contract ProxyCalls {
         proxy.execute(dssProxyActions, msg.data);
     }
 
-    function flux(address, bytes32, address, uint256) public {
-        proxy.execute(dssProxyActions, msg.data);
-    }
-
-    function move(address, address, uint256) public {
-        proxy.execute(dssProxyActions, msg.data);
-    }
-
-    function frob(address, bytes32, int256, int256) public {
-        proxy.execute(dssProxyActions, msg.data);
-    }
-
     function quit(address, bytes32, address) public {
         proxy.execute(dssProxyActions, msg.data);
     }
@@ -208,39 +196,6 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         this.transfer(address(wbtc), address(123), 4);
         assertEq(wbtc.balanceOf(address(proxy)), 6);
         assertEq(wbtc.balanceOf(address(123)), 4);
-    }
-
-    function testFlux() public {
-        assertEq(dai.balanceOf(address(this)), 0);
-        realWeth.deposit{value: 1 ether}();
-        realWeth.approve(address(charter), uint256(-1));
-        charter.join(address(ethManagedJoin), address(proxy), 1 ether);
-        assertEq(vat.gem("ETH", address(this)), 0);
-        assertEq(vat.gem("ETH", charterProxy), 1 ether);
-
-        this.flux(address(charter), "ETH", address(this), 0.75 ether);
-        assertEq(vat.gem("ETH", charter.getOrCreateProxy(address(this))), 0.75 ether);
-        assertEq(vat.gem("ETH", charterProxy), 0.25 ether);
-    }
-
-    function testFrob() public {
-        assertEq(dai.balanceOf(address(this)), 0);
-        realWeth.deposit{value: 1 ether}();
-        realWeth.approve(address(charter), uint256(-1));
-        charter.join(address(ethManagedJoin), address(proxy), 1 ether);
-
-        this.frob(address(charter), "ETH", 0.5 ether, 60 ether);
-        assertEq(vat.gem("ETH", charterProxy), 0.5 ether);
-        assertEq(vat.dai(address(proxy)), mul(RAY, 60 ether));
-        assertEq(vat.dai(address(this)), 0);
-
-        this.move(address(charter), address(this), mul(RAY, 60 ether));
-        assertEq(vat.dai(address(proxy)), 0);
-        assertEq(vat.dai(address(this)), mul(RAY, 60 ether));
-
-        vat.hope(address(daiJoin));
-        daiJoin.exit(address(this), 60 ether);
-        assertEq(dai.balanceOf(address(this)), 60 ether);
     }
 
     function testLockETH() public {
