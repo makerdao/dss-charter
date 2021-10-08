@@ -33,7 +33,6 @@ interface CharterLike {
     function join(address, address, uint256) external;
     function exit(address, address, uint256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
-    function flux(bytes32, address, address, uint256) external;
     function quit(bytes32 ilk, address dst) external;
     function gate(bytes32) external view returns (uint256);
     function Nib(bytes32) external view returns (uint256);
