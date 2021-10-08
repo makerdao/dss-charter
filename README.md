@@ -1,4 +1,5 @@
 # CharterManager
+![Build Status](https://github.com/makerdao/dss-charter/actions/workflows/.github/workflows/tests.yaml/badge.svg?branch=master)
 
 This is a vault manager that supports origination fees and permissioned vaults.
 
