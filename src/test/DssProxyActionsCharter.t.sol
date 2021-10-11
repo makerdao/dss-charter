@@ -189,6 +189,22 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         (,artV) = vat.urns(ilk, urn);
     }
 
+    function assertEqApprox(uint256 _a, uint256 _b, uint256 _tolerance) internal {
+        uint256 a = _a;
+        uint256 b = _b;
+        if (a < b) {
+            uint256 tmp = a;
+            a = b;
+            b = tmp;
+        }
+        if (a - b > _tolerance) {
+            emit log_bytes32("Error: Wrong `uint' value");
+            emit log_named_uint("  Expected", _b);
+            emit log_named_uint("    Actual", _a);
+            fail();
+        }
+    }
+
     function testTransfer() public {
         wbtc.transfer(address(proxy), 10);
         assertEq(wbtc.balanceOf(address(proxy)), 10);
@@ -263,6 +279,48 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(dai.balanceOf(address(this)), 300 ether);
         assertEq(vat.dai(address(vow)), 3030303030303030303040000000000000000000000000); // (300 / 0.99) * 0.01
         assertEq(art("ETH", charterProxy), 303030303030303030304); // (300 / 0.99)
+    }
+
+    function test_fuzz_drawWithFee(uint256 rate, uint256 Nib, uint256 wad, uint256 vatDai) public {
+        HevmStoreLike(address(hevm)).store(
+            address(vat),
+            keccak256(abi.encode(address(this), uint256(0))),
+            bytes32(uint256(1))
+        );
+        vat.file("Line", uint256(-1));
+        vat.file("ETH", "line", uint256(-1));
+
+        rate = rate % 1_000;
+        rate = (rate == 0 ? 1 : rate) * RAY / 10_000;
+        vat.fold("ETH", address(0), int256(rate)); // Between RAY/10000 to RAY/10
+
+        charter.file("ETH", "gate", 0);
+
+        Nib = Nib % 1_000;
+        Nib = (Nib == 0 ? 1 : Nib) * WAD / 10_000;
+        charter.file("ETH", "Nib", Nib); // Between 0.001% and 10%
+
+        wad = wad % 100_000;
+        wad = (wad == 0 ? 1 : wad) * 10_000 * WAD; // Between 10K and 1B
+
+        vatDai = (wad / ((vatDai % 8) + 2)) * RAY; // Between wad/10 and wad/2
+        HevmStoreLike(address(hevm)).store(
+            address(vat),
+            keccak256(abi.encode(address(proxy), uint256(5))),
+            bytes32(uint256(vatDai))
+        );
+        assertEq(vat.dai(address(proxy)), vatDai);
+        assertEq(dai.balanceOf(address(this)), 0);
+
+        uint256 draw = wad - (vatDai / RAY);
+        this.lockETH{value: wad / 150}(address(charter), address(ethManagedJoin));
+        assertEq(dai.balanceOf(address(this)), 0);
+        this.draw(address(charter), "ETH", address(jug), address(daiJoin), wad);
+        assertEq(dai.balanceOf(address(this)), wad);
+        assertEqApprox(vat.dai(address(vow)), draw * RAY * Nib / (WAD - Nib), RAD / 100);
+        uint256 art_ = art("ETH", charterProxy);
+        assertEqApprox(art_, (draw + draw * Nib / WAD) * RAY / (RAY + rate), art_ / 100);
+        assertLt(vat.dai(address(proxy)), RAD / 1000); // There should remain just dust
     }
 
     function testDrawAfterDripWithFee() public {
