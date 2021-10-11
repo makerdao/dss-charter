@@ -20,11 +20,12 @@ import "./TestBase.sol";
 import "src/CharterManager.sol";
 
 import {Vat} from "dss/vat.sol";
-import {Vow} from 'dss/vow.sol';
-import {Spotter} from 'dss/spot.sol';
-import {DaiJoin} from 'dss/join.sol';
-import {DSValue} from 'ds-value/value.sol';
+import {Vow} from "dss/vow.sol";
+import {Spotter} from "dss/spot.sol";
+import {DaiJoin} from "dss/join.sol";
+import {DSValue} from "ds-value/value.sol";
 import {ManagedGemJoin} from "dss-gem-joins/join-managed.sol";
+import {GemJoin5} from "dss-gem-joins/join-5.sol";
 
 contract Usr {
 
@@ -84,8 +85,8 @@ contract Usr {
     function frob(address u, address v, address w, int256 dink, int256 dart) public {
         manager.frob(ilk, u, v, w, dink, dart);
     }
-    function frobDirect(address u, address v, address w, int256 dink, int256 dart) public {
-        VatLike(manager.vat()).frob(adapter.ilk(), u, v, w, dink, dart);
+    function frobDirect(bytes32 i, address u, address v, address w, int256 dink, int256 dart) public {
+        VatLike(manager.vat()).frob(i, u, v, w, dink, dart);
     }
     function flux(address src, address dst, uint256 wad) public {
         manager.flux(ilk, src, dst, wad);
@@ -98,6 +99,12 @@ contract Usr {
     }
     function quit(address dst) public {
         manager.quit(adapter.ilk(), dst);
+    }
+    function joinDirect(address gemJoin, uint256 wad) public {
+        GemJoin5(gemJoin).join(address(this), wad);
+    }
+    function exitDirect(address gemJoin, uint256 wad) public {
+        GemJoin5(gemJoin).exit(address(this), wad);
     }
     function hope(address vat, address usr) public {
         Vat(vat).hope(usr);
@@ -459,6 +466,68 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 100 * 1e18);
     }
 
+    function test_migration() public {
+        (Usr old,) = init_user();
+        (Usr a,) = init_user();
+
+        // setup old (different) ilk with the same gem to migrate out from
+        bytes32 oldIlk = "TOKEN-B";
+        vat.init(oldIlk);
+        vat.file(oldIlk, "line", CEILING * 1e27);
+        vat.file(oldIlk, "spot", 1e27);
+
+        GemJoin5 oldAdapter = new GemJoin5(address(vat), oldIlk, address(gem));
+        vat.rely(address(oldAdapter));
+
+        // setup old vault
+        old.approve(address(gem), address(oldAdapter));
+        old.joinDirect(address(oldAdapter), 60 * 1e6);
+        old.frobDirect(oldIlk, address(old), address(old), address(old), 60 * 1e18, 40 * 1e18);
+
+        (uint256 ink, uint256 art) = vat.urns(oldIlk, address(old));
+        assertEq(ink, 60 * 1e18);
+        assertEq(art, 40 * 1e18);
+        assertEq(old.dai(), 40 * 1e45);
+        assertEq(old.gems(), 0);
+
+        // set different rates per ilk
+        vat.fold(oldIlk, address(vow), 0.05 * 1e27); // old rate is 1.05
+        vat.fold(ilk,    address(vow), 0.02 * 1e27); // new rate is 1.02
+
+        uint256 vowSinBefore = vat.sin(address(vow));
+
+        // perform privileged migration sequence
+        (, uint256 oldRate,,,) = vat.ilks(oldIlk);
+        (, uint256 rate,,,) = vat.ilks(ilk);
+
+        int256  dart = int256(mul(oldRate, art) / rate);
+        int256  dink = int256(ink);
+        uint256 dec = Token(gem).decimals();
+        uint256 gemAmt = ink / (10 ** (18 - dec));
+
+        // Note: In a spell obviously we'd drip both ilks before running the logic as well,
+        // so that all parties get a fair treatment regarding fees.
+        vat.grab(oldIlk, address(old), address(this), address(vow), -int256(ink), -int256(art));
+        oldAdapter.exit(address(this), gemAmt);
+        Token(gem).approve(address(manager), gemAmt);
+        manager.join(address(adapter), address(a), gemAmt);
+        vat.grab(ilk, a.proxy(), a.proxy(), address(vow), dink, dart);
+
+        // make sure new position is as expected under the manager's ilk
+        (ink, art) = vat.urns(ilk, a.proxy());
+        assertEq(ink, 60 * 1e18);
+        assertEq(art, 41176470588235294117); // 40 * (1.05 / 1.02) * 1e18
+        assertEq(a.dai(), 0);
+        assertEq(a.gems(), 0);
+
+        // due to precision imperfection vice is not zeroed back, but diff is negligible
+        assert((vat.sin(address(vow)) - vowSinBefore) < 1e30);
+        assert(vat.vice() < 1e30);
+
+        // no sin is brought upon any other address than the vow
+        assertEq(vat.sin(address(this)), 0);
+    }
+
     function test_frob_gate_nib() public {
         (Usr a,) = init_user();
         init_ilk_gate(address(a), 2 * NIB_ONE_PCT, 0, 50 * 1e45);
@@ -775,7 +844,7 @@ contract CharterManagerTest is TestBase {
 
         // frobDirect used as shortcut instead of end.free which would grab the ink after vat.cage.
         cheat_uncage();
-        a.frobDirect(address(a), address(a), address(a), -100 * 1e18, -50 * 1e18);
+        a.frobDirect(ilk, address(a), address(a), address(a), -100 * 1e18, -50 * 1e18);
         vat.cage();
 
         assertEq(vat.gem(ilk, address(a)), 100 * 1e18);
