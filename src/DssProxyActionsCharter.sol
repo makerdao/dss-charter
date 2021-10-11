@@ -584,11 +584,11 @@ contract DssProxyActionsEndCharter is Common {
             (ink,) = vat.urns(ilk, urp);
         }
         // Approves the charter to transfer the position to proxy's address in the vat
-        if (vat.can(address(this), address(charter)) == 0) {
-            vat.hope(charter);
-        }
+        vat.hope(charter);
         // Transfers position from CDP to the proxy address
         CharterLike(charter).quit(ilk, address(this));
+        // Denies charter to access to proxy's DAI balance in the vat after execution
+        vat.nope(charter);
         // Frees the position and recovers the collateral in the vat registry
         EndLike(end).free(ilk);
     }
