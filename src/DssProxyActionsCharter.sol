@@ -602,6 +602,13 @@ contract DssProxyActionsEndCharter is Common {
         vat.nope(charter);
         // Frees the position and recovers the collateral in the vat registry
         EndLike(end).free(ilk);
+        // Fluxs to the proxy's manager proxy, so it can be pulled out with the managed gem join
+        VatLike(vat).flux(
+            ilk,
+            address(this),
+            urp,
+            ink
+        );
     }
 
     // Public functions
@@ -614,13 +621,6 @@ contract DssProxyActionsEndCharter is Common {
 
         // Frees the position through the end contract
         uint256 wad = _free(charter, end, ilk);
-        // Fluxs to the proxy's manager proxy, so it can be pulled out with the managed gem join
-        VatLike(CharterLike(charter).vat()).flux(
-            ilk,
-            address(this),
-            CharterLike(charter).getOrCreateProxy(address(this)),
-            wad
-        );
         // Exits WETH amount to proxy address as a token
         CharterLike(charter).exit(ethJoin, address(this), wad);
         // Converts WETH to ETH
@@ -638,13 +638,6 @@ contract DssProxyActionsEndCharter is Common {
 
         // Frees the position through the end contract
         uint256 wad = _free(charter, end, ilk);
-        // Fluxs to the proxy's manager proxy, so it can be pulled out with the managed gem join
-        VatLike(DaiJoinLike(gemJoin).vat()).flux(
-            ilk,
-            address(this),
-            CharterLike(charter).getOrCreateProxy(address(this)),
-            wad
-        );
         // Exits token amount to the user's wallet as a token
         uint256 amt = wad / 10 ** (18 - GemJoinLike(gemJoin).dec());
         CharterLike(charter).exit(gemJoin, msg.sender, amt);
