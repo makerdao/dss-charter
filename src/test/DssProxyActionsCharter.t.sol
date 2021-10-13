@@ -380,6 +380,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         this.draw(address(charter), "ETH", address(jug), address(daiJoin), 300 ether);
         dai.approve(address(proxy), 300 ether);
         this.wipe(address(charter), "ETH", address(daiJoin), 300 ether);
+        assertEq(dai.balanceOf(address(this)), 0);
         assertEq(art("ETH", charterProxy), 0);
     }
 
@@ -394,6 +395,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         }
         dai.approve(address(proxy), 300 ether * times);
         this.wipe(address(charter), "ETH", address(daiJoin), 300 ether * times);
+        assertEq(dai.balanceOf(address(this)), 0);
         assertEq(art("ETH", charterProxy), 0);
     }
 
