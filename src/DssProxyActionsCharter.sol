@@ -207,13 +207,7 @@ contract DssProxyActionsCharter is Common {
         CharterLike(charter).frob(ilk, address(this), address(this), address(this), dink, dart);
     }
 
-    // Public functions
-
-    function transfer(address gem, address dst, uint256 amt) external {
-        GemLike(gem).transfer(dst, amt);
-    }
-
-    function ethJoin_join(address charter, address ethJoin) public payable {
+    function _ethJoin_join(address charter, address ethJoin) internal {
         GemLike gem = GemJoinLike(ethJoin).gem();
         // Wraps ETH in WETH
         gem.deposit{value: msg.value}();
@@ -223,7 +217,7 @@ contract DssProxyActionsCharter is Common {
         CharterLike(charter).join(ethJoin, address(this), msg.value);
     }
 
-    function gemJoin_join(address charter, address gemJoin, uint256 amt) public {
+    function _gemJoin_join(address charter, address gemJoin, uint256 amt) internal {
         GemLike gem = GemJoinLike(gemJoin).gem();
         // Gets token from the user's wallet
         gem.transferFrom(msg.sender, address(this), amt);
@@ -231,6 +225,12 @@ contract DssProxyActionsCharter is Common {
         gem.approve(charter, amt);
         // Joins token collateral into the vat
         CharterLike(charter).join(gemJoin, address(this), amt);
+    }
+
+    // Public functions
+
+    function transfer(address gem, address dst, uint256 amt) external {
+        GemLike(gem).transfer(dst, amt);
     }
 
     function hope(
@@ -260,7 +260,7 @@ contract DssProxyActionsCharter is Common {
         address ethJoin
     ) external payable {
         // Receives ETH amount, converts it to WETH and joins it into the vat
-        ethJoin_join(charter, ethJoin);
+        _ethJoin_join(charter, ethJoin);
         // Locks WETH amount into the CDP
         _frob(charter, GemJoinLike(ethJoin).ilk(), _toInt256(msg.value), 0);
     }
@@ -271,7 +271,7 @@ contract DssProxyActionsCharter is Common {
         uint256 amt
     ) external {
         // Takes token amount from user's wallet and joins into the vat
-        gemJoin_join(charter, gemJoin, amt);
+        _gemJoin_join(charter, gemJoin, amt);
         // Locks token amount into the CDP
         _frob(charter, GemJoinLike(gemJoin).ilk(), _toInt256(_convertTo18(gemJoin, amt)), 0);
     }
@@ -401,7 +401,7 @@ contract DssProxyActionsCharter is Common {
         bytes32 ilk = GemJoinLike(ethJoin).ilk();
 
         // Receives ETH amount, converts it to WETH and joins it into the vat
-        ethJoin_join(charter, ethJoin);
+        _ethJoin_join(charter, ethJoin);
         // Locks WETH amount into the CDP and generates debt
         _frob(
             charter,
@@ -435,7 +435,7 @@ contract DssProxyActionsCharter is Common {
         bytes32 ilk = GemJoinLike(gemJoin).ilk();
 
         // Takes token amount from user's wallet and joins into the vat
-        gemJoin_join(charter, gemJoin, amtC);
+        _gemJoin_join(charter, gemJoin, amtC);
         // Locks token amount into the CDP and generates debt
         _frob(
             charter,
