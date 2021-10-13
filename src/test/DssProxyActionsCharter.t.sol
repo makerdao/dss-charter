@@ -145,7 +145,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
 
         // Create a real WETH token and replace it with a new adapter in the vat
         realWeth = new WETH9_();
-        this.deny(address(vat), address(ethManagedJoin));
+        this.deny(address(vat), address(ethJoin));
         ethManagedJoin = new ManagedGemJoin(address(vat), "ETH", address(realWeth));
         this.rely(address(vat), address(ethManagedJoin));
 
