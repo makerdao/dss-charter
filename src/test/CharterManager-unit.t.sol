@@ -386,6 +386,42 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 100 * 1e18);
     }
 
+    function test_exit_maintains_peace() public {
+        init_ilk_ungate(0, 3 * RAY);
+        (Usr a,) = init_user();
+        a.join(200 * 1e6);
+        assertEq(a.gems(), 200 * 1e18);
+        // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
+        a.frob(100 * 1e18, 45 * 1e18);
+        (uint256 ink, uint256 art) = a.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 45 * 1e18);
+        assertEq(a.dai(), 45 * 1e45);
+        assertEq(a.gems(), 100 * 1e18);
+
+        // check exit of unlocked gems does not affect the vault and does not prevent increasing debt
+        a.exit(100 * 1e6);
+        (ink, art) = a.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 45 * 1e18);
+        assertEq(a.dai(), 45 * 1e45);
+        assertEq(a.gems(), 0);
+
+        a.frob(0, 5 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        assertEq(a.dai(), 50 * 1e45);
+        assertEq(a.gems(), 0);
+
+        a.frob(-100 * 1e18, -50 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(a.dai(), 0);
+        assertEq(a.gems(), 100 * 1e18);
+    }
+
     function testFail_frob_ungate_below_Peace() public {
         init_ilk_ungate(0, 3 * RAY);
         (Usr a,) = init_user();
@@ -641,6 +677,37 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 20 * 1e18);
     }
 
+    function test_debt_ceiling_removal() public {
+        (Usr a,) = init_user();
+        init_ilk_gate(address(a), 0, 0, 50 * 1e45);
+
+        a.join(20 * 1e6);
+        a.frob(20 * 1e18, 20 * 1e18);
+        (uint256 ink, uint256 art) = a.urn();
+        assertEq(ink, 20 * 1e18);
+        assertEq(art, 20 * 1e18);
+        assertEq(a.dai(), 20 * 1e45);
+        assertEq(a.gems(), 0);
+
+        // remove the debt ceiling entirely
+        manager.file(ilk, address(a), "uline", 0);
+
+        // partial repay - frob out some of the funds
+        a.frob(-10 * 1e18, -15 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 10 * 1e18);
+        assertEq(art, 5 * 1e18);
+        assertEq(a.gems(), 10 * 1e18);
+        assertEq(a.dai(), 5* 1e45);
+
+        // repay remaining debt, withdraw collateral
+        a.frob(-10 * 1e18, -5 * 1e18);
+        (ink, art) = a.urn();
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(a.gems(), 20 * 1e18);
+    }
+
     // Non-msg.sender frobs should be disallowed for now
     function testFail_frob1() public {
         (Usr a,) = init_user();
@@ -800,5 +867,26 @@ contract CharterManagerTest is TestBase {
     }
     function testFail_direct_exit() public {
         adapter.exit(address(this), address(this), 0);
+    }
+
+    function test_implementation_upgrade() public {
+
+        (Usr a,) = init_user();
+        a.join(10 * 1e6);
+        assertEq(gem.balanceOf(address(a)), 190 * 1e6);
+        assertEq(gem.balanceOf(address(adapter)), 10 * 1e6);
+        assertEq(a.gems(), 10 * 1e18);
+
+        address impl = CharterManager(address(manager)).implementation();
+        // Replace implementation
+        CharterManager(address(manager)).setImplementation(
+            address(new CharterManagerImp(address(vat), address(vow), address(spotter)))
+        );
+        assertTrue(impl != CharterManager(address(manager)).implementation());
+
+        a.exit(10 * 1e6);
+        assertEq(gem.balanceOf(address(a)), 200 * 1e6);
+        assertEq(gem.balanceOf(address(adapter)), 0);
+        assertEq(a.gems(), 0);
     }
 }
