@@ -38,16 +38,16 @@ interface SpotterLike {
     function ilks(bytes32) external returns (address, uint256);
 }
 
-interface ManagedGemJoinLike {
-    function gem() external view returns (address);
-    function ilk() external view returns (bytes32);
-    function join(address, uint256) external;
-    function exit(address, address, uint256) external;
-}
-
 interface GemLike {
     function approve(address, uint256) external;
     function transferFrom(address, address, uint256) external;
+}
+
+interface ManagedGemJoinLike {
+    function gem() external view returns (GemLike);
+    function ilk() external view returns (bytes32);
+    function join(address, uint256) external;
+    function exit(address, address, uint256) external;
 }
 
 contract UrnProxy {
@@ -208,9 +208,9 @@ contract CharterManagerImp {
     function join(address gemJoin, address usr, uint256 amt) external {
         require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
 
-        address gem = ManagedGemJoinLike(gemJoin).gem();
-        GemLike(gem).transferFrom(msg.sender, address(this), amt);
-        GemLike(gem).approve(gemJoin, amt);
+        GemLike gem = ManagedGemJoinLike(gemJoin).gem();
+        gem.transferFrom(msg.sender, address(this), amt);
+        gem.approve(gemJoin, amt);
         ManagedGemJoinLike(gemJoin).join(getOrCreateProxy(usr), amt);
     }
 
