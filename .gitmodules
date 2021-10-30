@@ -15,6 +15,3 @@
 	path = lib/proxy-registry
 	url = https://github.com/makerdao/proxy-registry
 	branch = solc-0.6
-[submodule "lib/proxy-manager-clipper.git"]
-	path = lib/proxy-manager-clipper.git
-	url = https://github.com/makerdao/proxy-manager-clipper.git
