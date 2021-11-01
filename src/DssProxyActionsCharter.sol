@@ -118,10 +118,6 @@ contract DssProxyActionsCharter is Common {
         require(y >= 0, "int-overflow");
     }
 
-    function _toRad(uint256 wad) internal pure returns (uint256 rad) {
-        rad = _mul(wad, 10 ** 27);
-    }
-
     function _convertTo18(address gemJoin, uint256 amt) internal returns (uint256 wad) {
         // For those collaterals that have less than 18 decimals precision we
         //   need to do the conversion before passing to frob function
