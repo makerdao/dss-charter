@@ -666,9 +666,9 @@ contract DssProxyActionsEndCharter is Common {
         address charter,
         address ethJoin,
         address end,
-        bytes32 ilk,
         uint256 wad
     ) external {
+        bytes32 ilk = GemJoinLike(ethJoin).ilk();
         EndLike(end).cash(ilk, wad);
         uint256 wadC = _mul(wad, EndLike(end).fix(ilk)) / RAY;
         // Flux to the proxy's UrnProxy in charter manager, so it can be pulled out with the managed gem join
@@ -690,9 +690,9 @@ contract DssProxyActionsEndCharter is Common {
         address charter,
         address gemJoin,
         address end,
-        bytes32 ilk,
         uint256 wad
     ) external {
+        bytes32 ilk = GemJoinLike(gemJoin).ilk();
         EndLike(end).cash(ilk, wad);
         uint256 wadC = _mul(wad, EndLike(end).fix(ilk)) / RAY;
         // Flux to the proxy's UrnProxy in charter manager, so it can be pulled out with the managed gem join
