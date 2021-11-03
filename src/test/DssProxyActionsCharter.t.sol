@@ -33,6 +33,10 @@ contract ProxyCalls {
         proxy.execute(dssProxyActions, msg.data);
     }
 
+    function daiJoin_join(address daiJoin, uint256 wad) public {
+        proxy.execute(dssProxyActions, msg.data);
+    }
+
     function quit(address, bytes32, address) public {
         proxy.execute(dssProxyActions, msg.data);
     }
@@ -356,6 +360,22 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         dai.approve(address(proxy), 300 ether);
         this.wipeAll(address(charter), "ETH", address(daiJoin));
         assertEq(dai.balanceOf(address(this)), 0);
+        assertEq(art("ETH", charterProxy), 0);
+    }
+
+    function testWipeAllWhileDaiExists() public {
+        this.lockETH{value: 2 ether}(address(charter), address(ethManagedJoin));
+        this.draw(address(charter), "ETH", address(jug), address(daiJoin), 300 ether);
+
+        // draw dai from another vault and deposit it back so the dai in the vat exceeds the eth vault's debt
+        wbtc.approve(address(proxy), 1000 * 10 ** 8);
+        this.lockGem(address(charter), address(wbtcJoin), 1000 * 10 ** 8);
+        this.draw(address(charter), "WBTC", address(jug), address(daiJoin), 1000 ether);
+        dai.approve(address(proxy), 1000 ether);
+        this.daiJoin_join(address(daiJoin), 1000 ether);
+
+        this.wipeAll(address(charter), "ETH", address(daiJoin));
+        assertEq(dai.balanceOf(address(this)), 300 ether);
         assertEq(art("ETH", charterProxy), 0);
     }
 
