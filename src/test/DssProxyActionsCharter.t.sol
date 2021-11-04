@@ -179,8 +179,8 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         // Deploy proxy factory and create a proxy
         DSProxyFactory factory = new DSProxyFactory();
         registry = new ProxyRegistry(address(factory));
-        dssProxyActions = address(new DssProxyActionsCharter());
-        dssProxyActionsEnd = address(new DssProxyActionsEndCharter());
+        dssProxyActions = address(new DssProxyActionsCharter(address(vat)));
+        dssProxyActionsEnd = address(new DssProxyActionsEndCharter(address(vat)));
         proxy = DSProxy(registry.build());
         charterProxy = charter.getOrCreateProxy(address(proxy));
     }
