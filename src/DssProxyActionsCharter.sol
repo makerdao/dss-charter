@@ -84,8 +84,8 @@ interface HopeLike {
 contract Common {
     uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;
-    address immutable vat;
-    address immutable charter;
+    address immutable public vat;
+    address immutable public charter;
 
     constructor(address vat_, address charter_) public {
         vat = vat_;
