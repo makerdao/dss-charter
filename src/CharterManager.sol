@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import {DssCdpManager, UrnHandler} from "./DssCdpManager.sol";
-
 pragma solidity 0.6.12;
+
+import {SubCdpManager, UrnHandler} from "./SubCdpManager.sol";
 
 interface VatLike {
     function live() external view returns (uint256);
@@ -106,7 +106,7 @@ contract CharterManager is ProxyStorage {
     }
 }
 
-contract CharterManagerImp is ProxyStorage, DssCdpManager {
+contract CharterManagerImp is ProxyStorage, SubCdpManager {
     // --- Implementation Storage ---
     mapping (address => mapping (address => uint256))  public can;
     mapping (bytes32 => uint256)                       public gate;  // allow only permissioned vaults
@@ -145,7 +145,6 @@ contract CharterManagerImp is ProxyStorage, DssCdpManager {
     uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;
 
-    // TODO: these are also in cdp manager, what do we do?
     function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
     }
@@ -168,28 +167,14 @@ contract CharterManagerImp is ProxyStorage, DssCdpManager {
         _;
     }
 
-    constructor(address vat_, address vow_, address spotter_) public DssCdpManager(vat_) {
+    constructor(address vat_, address mainManager_, address vow_, address spotter_)
+        public SubCdpManager(vat_, mainManager_)
+    {
         vow = vow_;
         spotter = spotter_;
     }
 
-    // TODO: check logic identical and remove
-    modifier allowed(address usr) {
-        require(msg.sender == usr || can[usr][msg.sender] == 1, "CharterManager/not-allowed");
-        _;
-    }
-    // TODO: check logic identical and remove
-    function hope(address usr) external {
-        can[msg.sender][usr] = 1;
-        emit Hope(msg.sender, usr);
-    }
-    // TODO: check logic identical and remove
-    function nope(address usr) external {
-        can[msg.sender][usr] = 0;
-        emit Nope(msg.sender, usr);
-    }
-
-    function join(address gemJoin, uint cdp, uint256 amt) external {
+    function join(address gemJoin, uint256 cdp, uint256 amt) external {
         require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
 
         GemLike gem = ManagedGemJoinLike(gemJoin).gem();
@@ -198,9 +183,9 @@ contract CharterManagerImp is ProxyStorage, DssCdpManager {
         ManagedGemJoinLike(gemJoin).join(urns[cdp], amt);
     }
 
-    function exit(address gemJoin, uint cdp, address usr, uint256 amt) external {
+    function exit(address gemJoin, uint256 cdp, address usr, uint256 amt) external {
         require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
-        require(msg.sender == owns[cdp], "CharterManager/non-owner");
+        require(owns[cdp] == msg.sender, "CharterManager/non-owner");
 
         address urp = urns[cdp];
         require(urp != address(0), "CharterManager/non-existing-urp");
@@ -242,7 +227,7 @@ contract CharterManagerImp is ProxyStorage, DssCdpManager {
         }
     }
 
-    function frob(uint cdp, address w, int256 dink, int256 dart) external cdpAllowed(cdp) {
+    function frob(uint256 cdp, address w, int256 dink, int256 dart) external cdpAllowed(cdp) {
         require(w == msg.sender, "CharterManager/not-matching-w");
         address urp = urns[cdp];
         bytes32 ilk = ilks[cdp];
@@ -266,13 +251,11 @@ contract CharterManagerImp is ProxyStorage, DssCdpManager {
         VatLike(vat).flux(ilks[cdpSrc], urns[cdpSrc], durp, wad);
     }
 
-    // TODO: how to handle these?
-    function onLiquidation(address gemJoin, address usr, uint256 wad) external {}
+    function onLiquidation(address gemJoin, address urp, uint256 wad) external {}
 
-    // TODO: how to handle these?
     function onVatFlux(address gemJoin, address from, address to, uint256 wad) external {}
 
-    function quit(uint cdp, address dst) external {
+    function quit(uint256 cdp, address dst) external {
         require(VatLike(vat).live() == 0, "CharterManager/vat-still-live");
 
         require(owns[cdp] == msg.sender);
