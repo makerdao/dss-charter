@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import {DssCdpManager, UrnHandler} from "./DssCdpManager.sol";
+
 pragma solidity 0.6.12;
 
 interface VatLike {
@@ -50,18 +52,12 @@ interface ManagedGemJoinLike {
     function exit(address, address, uint256) external;
 }
 
-contract UrnProxy {
-    address immutable public usr;
-
-    constructor(address vat_, address usr_) public {
-        usr = usr_;
-        VatLike(vat_).hope(msg.sender);
-    }
-}
-
-contract CharterManager {
+contract ProxyStorage {
     address public implementation;
     mapping (address => uint256) public wards;
+}
+
+contract CharterManager is ProxyStorage {
 
     event Rely(address indexed usr);
     event Deny(address indexed usr);
@@ -110,13 +106,8 @@ contract CharterManager {
     }
 }
 
-contract CharterManagerImp {
-    // --- Proxy Storage ---
-    bytes32 slot0; // avoid collision with proxy's implementation field
-    mapping (address => uint256) public wards;
-
+contract CharterManagerImp is ProxyStorage, DssCdpManager {
     // --- Implementation Storage ---
-    mapping (address => address) public proxy; // UrnProxy per user
     mapping (address => mapping (address => uint256))  public can;
     mapping (bytes32 => uint256)                       public gate;  // allow only permissioned vaults
     mapping (bytes32 => uint256)                       public Nib;   // fee percentage for un-permissioned vaults [wad]
@@ -125,7 +116,6 @@ contract CharterManagerImp {
     mapping (bytes32 => mapping (address => uint256))  public peace; // min CR for permissioned vaults            [ray]
     mapping (bytes32 => mapping (address => uint256))  public uline; // debt ceiling for permissioned vaults      [rad]
 
-    address public immutable vat;
     address public immutable vow;
     address public immutable spotter;
 
@@ -134,7 +124,6 @@ contract CharterManagerImp {
     event File(bytes32 indexed ilk, address indexed usr, bytes32 indexed what, uint256 data);
     event Hope(address indexed from, address indexed to);
     event Nope(address indexed from, address indexed to);
-    event NewProxy(address indexed usr, address indexed urp);
 
     // --- Administration ---
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
@@ -156,6 +145,7 @@ contract CharterManagerImp {
     uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;
 
+    // TODO: these are also in cdp manager, what do we do?
     function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
     }
@@ -178,46 +168,41 @@ contract CharterManagerImp {
         _;
     }
 
-    constructor(address vat_, address vow_, address spotter_) public {
-        vat = vat_;
+    constructor(address vat_, address vow_, address spotter_) public DssCdpManager(vat_) {
         vow = vow_;
         spotter = spotter_;
     }
 
+    // TODO: check logic identical and remove
     modifier allowed(address usr) {
         require(msg.sender == usr || can[usr][msg.sender] == 1, "CharterManager/not-allowed");
         _;
     }
+    // TODO: check logic identical and remove
     function hope(address usr) external {
         can[msg.sender][usr] = 1;
         emit Hope(msg.sender, usr);
     }
+    // TODO: check logic identical and remove
     function nope(address usr) external {
         can[msg.sender][usr] = 0;
         emit Nope(msg.sender, usr);
     }
 
-    function getOrCreateProxy(address usr) public returns (address urp) {
-        urp = proxy[usr];
-        if (urp == address(0)) {
-            urp = proxy[usr] = address(new UrnProxy(address(vat), usr));
-            emit NewProxy(usr, urp);
-        }
-    }
-
-    function join(address gemJoin, address usr, uint256 amt) external {
+    function join(address gemJoin, uint cdp, uint256 amt) external {
         require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
 
         GemLike gem = ManagedGemJoinLike(gemJoin).gem();
         gem.transferFrom(msg.sender, address(this), amt);
         gem.approve(gemJoin, amt);
-        ManagedGemJoinLike(gemJoin).join(getOrCreateProxy(usr), amt);
+        ManagedGemJoinLike(gemJoin).join(urns[cdp], amt);
     }
 
-    function exit(address gemJoin, address usr, uint256 amt) external {
+    function exit(address gemJoin, uint cdp, address usr, uint256 amt) external {
         require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
+        require(msg.sender == owns[cdp], "CharterManager/non-owner");
 
-        address urp = proxy[msg.sender];
+        address urp = urns[cdp];
         require(urp != address(0), "CharterManager/non-existing-urp");
         ManagedGemJoinLike(gemJoin).exit(urp, usr, amt);
     }
@@ -257,9 +242,12 @@ contract CharterManagerImp {
         }
     }
 
-    function frob(bytes32 ilk, address u, address v, address w, int256 dink, int256 dart) external allowed(u) {
-        require(u == v && w == msg.sender, "CharterManager/not-matching");
-        address urp = getOrCreateProxy(u);
+    function frob(uint cdp, address w, int256 dink, int256 dart) external cdpAllowed(cdp) {
+        require(w == msg.sender, "CharterManager/not-matching-w");
+        address urp = urns[cdp];
+        bytes32 ilk = ilks[cdp];
+        address u = owns[cdp];
+
         (, uint256 rate, uint256 spot,,) = VatLike(vat).ilks(ilk);
         uint256 _gate = gate[ilk];
 
@@ -271,21 +259,26 @@ contract CharterManagerImp {
         _validate(ilk, u, urp, dink, dart, rate, spot, _gate);
     }
 
-    function flux(bytes32 ilk, address src, address dst, uint256 wad) external allowed(src) {
-        address surp = getOrCreateProxy(src);
-        address durp = getOrCreateProxy(dst);
+    function flux(uint256 cdpSrc, uint256 cdpDst, uint256 wad) external cdpAllowed(cdpSrc) {
+        address durp = urns[cdpDst];
+        require(durp != address(0), "CharterManager/non-existing-durp");
 
-        VatLike(vat).flux(ilk, surp, durp, wad);
+        VatLike(vat).flux(ilks[cdpSrc], urns[cdpSrc], durp, wad);
     }
 
+    // TODO: how to handle these?
     function onLiquidation(address gemJoin, address usr, uint256 wad) external {}
 
+    // TODO: how to handle these?
     function onVatFlux(address gemJoin, address from, address to, uint256 wad) external {}
 
-    function quit(bytes32 ilk, address dst) external {
+    function quit(uint cdp, address dst) external {
         require(VatLike(vat).live() == 0, "CharterManager/vat-still-live");
 
-        address urp = getOrCreateProxy(msg.sender);
+        require(owns[cdp] == msg.sender);
+        address urp = urns[cdp];
+        bytes32 ilk = ilks[cdp];
+
         (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
         require(int256(ink) >= 0, "CharterManager/overflow");
         require(int256(art) >= 0, "CharterManager/overflow");
