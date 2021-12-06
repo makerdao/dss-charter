@@ -58,7 +58,6 @@ contract ProxyStorage {
 }
 
 contract CharterManager is ProxyStorage {
-
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event SetImplementation(address indexed);
@@ -183,9 +182,8 @@ contract CharterManagerImp is ProxyStorage, SubCdpManager {
         ManagedGemJoinLike(gemJoin).join(urns[cdp], amt);
     }
 
-    function exit(address gemJoin, uint256 cdp, address usr, uint256 amt) external {
+    function exit(address gemJoin, uint256 cdp, address usr, uint256 amt) external cdpOwned(cdp) {
         require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
-        require(owns[cdp] == msg.sender, "CharterManager/non-owner");
 
         address urp = urns[cdp];
         require(urp != address(0), "CharterManager/non-existing-urp");
@@ -255,10 +253,9 @@ contract CharterManagerImp is ProxyStorage, SubCdpManager {
 
     function onVatFlux(address gemJoin, address from, address to, uint256 wad) external {}
 
-    function quit(uint256 cdp, address dst) external {
+    function quit(uint256 cdp, address dst) external cdpOwned(cdp) {
         require(VatLike(vat).live() == 0, "CharterManager/vat-still-live");
 
-        require(owns[cdp] == msg.sender);
         address urp = urns[cdp];
         bytes32 ilk = ilks[cdp];
 

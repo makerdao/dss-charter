@@ -49,6 +49,13 @@ contract SubCdpManager {
 
     event NewCdp(address indexed usr, address indexed own, uint256 indexed cdp);
 
+    modifier cdpOwned(
+        uint256 cdp
+    ) {
+        require(msg.sender == owns[cdp], "SubCdpManager/cdp-not-owned");
+        _;
+    }
+
     modifier cdpAllowed(
         uint256 cdp
     ) {
