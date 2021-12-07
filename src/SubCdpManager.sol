@@ -25,8 +25,11 @@ interface MainCdpManagerLike {
 }
 
 contract UrnHandler {
-    constructor(address vat) public {
-        Hopelike(vat).hope(msg.sender);
+    address immutable public usr;
+
+    constructor(address vat_, address usr_) public {
+        usr = usr_;
+        Hopelike(vat_).hope(msg.sender);
     }
 }
 
@@ -85,7 +88,7 @@ contract SubCdpManager {
         require(usr != address(0), "SubCdpManager/usr-address-0");
 
         uint256 cdpi = MainCdpManagerLike(mainManager).open(ilk, usr);
-        urns[cdpi] = address(new UrnHandler(vat));
+        urns[cdpi] = address(new UrnHandler(vat, usr));
         owns[cdpi] = usr;
         ilks[cdpi] = ilk;
 
