@@ -68,10 +68,6 @@ contract SubCdpManager {
         mainManager = mainManager_;
     }
 
-    function add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x);
-    }
-
     // Allow/disallow a usr address to manage the cdp.
     function cdpAllow(
         uint256 cdp,
