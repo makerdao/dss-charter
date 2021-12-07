@@ -57,23 +57,8 @@ contract Usr {
     function join(address adapter_, uint256 cdp_, uint256 wad) public {
         manager.join(address(adapter_), cdp_, wad);
     }
-    function join(uint256 cdp_, uint256 wad) public {
-        manager.join(address(adapter), cdp_, wad);
-    }
-    function join(uint256 wad) public {
-        manager.join(address(adapter),cdp, wad);
-    }
     function exit(address adapter_, uint256 cdp_, address usr, uint256 wad) public {
         manager.exit(address(adapter_), cdp_, usr, wad);
-    }
-    function exit(address usr, uint256 wad) public {
-        manager.exit(address(adapter), cdp, usr, wad);
-    }
-    function exit(uint256 cdp_, uint256 wad) public {
-        manager.exit(address(adapter), cdp, address(this), wad);
-    }
-    function exit(uint256 wad) public {
-        manager.exit(address(adapter), cdp, address(this), wad);
     }
     function proxy() public view returns (address) {
         return manager.urns(cdp);
@@ -268,11 +253,11 @@ contract CharterManagerTest is TestBase {
 
     function test_join_exit_self() public {
         (Usr a,) = init_user();
-        a.join(10 * 1e6);
+        a.join(address(adapter), a.cdp(), 10 * 1e6);
         assertEq(gem.balanceOf(address(a)), 190 * 1e6);
         assertEq(gem.balanceOf(address(adapter)), 10 * 1e6);
         assertEq(a.gems(), 10 * 1e18);
-        a.exit(10 * 1e6);
+        a.exit(address(adapter), a.cdp(), address(a), 10 * 1e6);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
         assertEq(gem.balanceOf(address(adapter)), 0);
         assertEq(a.gems(), 0);
@@ -280,11 +265,11 @@ contract CharterManagerTest is TestBase {
 
     function test_join_other1() public {
         (Usr a, Usr b) = init_user();
-        a.join(10 * 1e6);
+        a.join(address(adapter), a.cdp(), 10 * 1e6);
         assertEq(gem.balanceOf(address(a)), 190 * 1e6);
         assertEq(gem.balanceOf(address(adapter)), 10 * 1e6);
         assertEq(a.gems(), 10 * 1e18);
-        b.join(a.cdp(), 20 * 1e6);
+        b.join(address(adapter), a.cdp(), 20 * 1e6);
         assertEq(gem.balanceOf(address(a)), 190 * 1e6);
         assertEq(gem.balanceOf(address(adapter)), 30 * 1e6);
         assertEq(a.gems(), 30 * 1e18);
@@ -297,28 +282,28 @@ contract CharterManagerTest is TestBase {
         assertEq(gem.balanceOf(address(b)), 200e6);
 
         // User A sends some gems to User B
-        a.join(b.cdp(), 100e6);
+        a.join(address(adapter), b.cdp(), 100e6);
         assertEq(a.gems(), 0);
         assertEq(b.gems(), 100e18);
         assertEq(gem.balanceOf(address(a)), 100e6);
         assertEq(gem.balanceOf(address(b)), 200e6);
 
         // B withdraws to A
-        b.exit(address(a), 100e6);
+        b.exit(address(adapter), b.cdp(), address(a), 100e6);
         assertEq(gem.balanceOf(address(a)), 200e6);
         assertEq(gem.balanceOf(address(b)), 200e6);
     }
 
     function testFail_exit_unauthorized() public {
         (Usr a, Usr b) = init_user();
-        a.join(10 * 1e6);
-        b.exit(a.cdp() ,10 * 1e6);
+        a.join(address(adapter), a.cdp(), 10 * 1e6);
+        b.exit(address(adapter), a.cdp(), address(b), 10 * 1e6);
     }
 
     function test_frob_ungate() public {
         init_ilk_ungate(0, 0);
         (Usr a,) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         (uint256 ink, uint256 art) = a.urn();
         assertEq(ink, 100 * 1e18);
@@ -336,7 +321,7 @@ contract CharterManagerTest is TestBase {
     function test_frob_ungate_Nib() public {
         init_ilk_ungate(NIB_ONE_PCT, 0);
         (Usr a,) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         (uint256 ink, uint256 art) = a.urn();
         assertEq(ink, 100 * 1e18);
@@ -371,7 +356,7 @@ contract CharterManagerTest is TestBase {
     function test_frob_ungate_above_Peace() public {
         init_ilk_ungate(0, 3 * RAY);
         (Usr a,) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
         a.frob(100 * 1e18, 50 * 1e18);
         (uint256 ink, uint256 art) = a.urn();
@@ -390,7 +375,7 @@ contract CharterManagerTest is TestBase {
     function test_exit_maintains_peace() public {
         init_ilk_ungate(0, 3 * RAY);
         (Usr a,) = init_user();
-        a.join(200 * 1e6);
+        a.join(address(adapter), a.cdp(), 200 * 1e6);
         assertEq(a.gems(), 200 * 1e18);
         // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
         a.frob(100 * 1e18, 45 * 1e18);
@@ -401,7 +386,7 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 100 * 1e18);
 
         // check exit of unlocked gems does not affect the vault and does not prevent increasing debt
-        a.exit(100 * 1e6);
+        a.exit(address(adapter), a.cdp(), address(a), 100 * 1e6);
         (ink, art) = a.urn();
         assertEq(ink, 100 * 1e18);
         assertEq(art, 45 * 1e18);
@@ -426,7 +411,7 @@ contract CharterManagerTest is TestBase {
     function testFail_frob_ungate_below_Peace() public {
         init_ilk_ungate(0, 3 * RAY);
         (Usr a,) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
         a.frob(100 * 1e18, 51 * 1e18);
     }
@@ -434,7 +419,7 @@ contract CharterManagerTest is TestBase {
     function testFail_frob_ungate_withdraw_below_Peace() public {
         init_ilk_ungate(0, 3 * RAY);
         (Usr a,) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
         a.frob(100 * 1e18, 50 * 1e18);
         (uint256 ink, uint256 art) = a.urn();
@@ -451,7 +436,7 @@ contract CharterManagerTest is TestBase {
         (Usr a,) = init_user();
         init_ilk_gate(address(a), 0, 0, 50 * 1e45);
 
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         (uint256 ink, uint256 art) = a.urn();
         assertEq(ink, 100 * 1e18);
@@ -533,7 +518,7 @@ contract CharterManagerTest is TestBase {
         (Usr a,) = init_user();
         init_ilk_gate(address(a), 2 * NIB_ONE_PCT, 0, 50 * 1e45);
 
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         (uint256 ink, uint256 art) = a.urn();
         assertEq(ink, 100 * 1e18);
@@ -569,7 +554,7 @@ contract CharterManagerTest is TestBase {
         (Usr a,) = init_user();
         init_ilk_gate(address(a), 0, 2 * RAY, 100 * 1e45);
 
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 75 dai.
         a.frob(100 * 1e18, 75 * 1e18);
         (uint256 ink, uint256 art) = a.urn();
@@ -590,7 +575,7 @@ contract CharterManagerTest is TestBase {
         (Usr a,) = init_user();
         init_ilk_gate(address(a), 0, 2 * RAY, 100 * 1e45);
 
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 75 dai.
         a.frob(100 * 1e18, 76 * 1e18);
     }
@@ -599,7 +584,7 @@ contract CharterManagerTest is TestBase {
         (Usr a,) = init_user();
         init_ilk_gate(address(a), 0, 2 * RAY, 100 * 1e45);
 
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 75 dai.
         a.frob(100 * 1e18, 75 * 1e18);
         (uint256 ink, uint256 art) = a.urn();
@@ -617,7 +602,7 @@ contract CharterManagerTest is TestBase {
         init_ilk_gate(address(a), 0, 0, 50 * 1e45);
         a.nope(address(vat), address(manager));
 
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
 
         // loan repayment should fail as its destination did not delegate the manager
@@ -628,7 +613,7 @@ contract CharterManagerTest is TestBase {
         (Usr a,) = init_user();
         init_ilk_gate(address(a), 0, 0, 50 * 1e45);
 
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         a.frob(100 * 1e18, 60 * 1e18);
     }
 
@@ -636,7 +621,7 @@ contract CharterManagerTest is TestBase {
         (Usr a, Usr b) = init_user();
         init_ilk_gate(address(a), 0, 0, 50 * 1e45);
 
-        b.join(100 * 1e6);
+        b.join(address(adapter), b.cdp(), 100 * 1e6);
         b.frob(100 * 1e18, 50 * 1e18);
     }
 
@@ -644,7 +629,7 @@ contract CharterManagerTest is TestBase {
         init_ilk_ungate(10 * NIB_ONE_PCT, 0);
         (Usr a,) = init_user();
 
-        a.join(20 * 1e6);
+        a.join(address(adapter), a.cdp(), 20 * 1e6);
         a.frob(20 * 1e18, 20 * 1e18);
         (uint256 ink, uint256 art) = a.urn();
         assertEq(ink, 20 * 1e18);
@@ -682,7 +667,7 @@ contract CharterManagerTest is TestBase {
         (Usr a,) = init_user();
         init_ilk_gate(address(a), 0, 0, 50 * 1e45);
 
-        a.join(20 * 1e6);
+        a.join(address(adapter), a.cdp(), 20 * 1e6);
         a.frob(20 * 1e18, 20 * 1e18);
         (uint256 ink, uint256 art) = a.urn();
         assertEq(ink, 20 * 1e18);
@@ -711,13 +696,12 @@ contract CharterManagerTest is TestBase {
 
     function testFail_frob1() public {
         (Usr a, Usr b) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         a.frob(b.cdp(), address(a), 100 * 1e18, 50 * 1e18);
     }
-
     function testFail_frob2() public {
         (Usr a, Usr b) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         a.frob(a.cdp(), address(b), 100 * 1e18, 50 * 1e18);
     }
 
@@ -727,7 +711,7 @@ contract CharterManagerTest is TestBase {
         assertEq(b.gems(), 0);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
         assertEq(gem.balanceOf(address(b)), 200 * 1e6);
-        a.join(b.cdp(), 100 * 1e6);
+        a.join(address(adapter), b.cdp(), 100 * 1e6);
         assertEq(gem.balanceOf(address(a)), 100 * 1e6);
         assertEq(b.gems(), 100 * 1e18);
         b.cdpAllow(b.cdp(), address(a), 1);
@@ -748,13 +732,13 @@ contract CharterManagerTest is TestBase {
 
     function testFail_frob_other1() public {
         (Usr a, Usr b) = init_user();
-        a.join(b.cdp(), 100 * 1e6);
+        a.join(address(adapter), b.cdp(), 100 * 1e6);
         a.frob(b.cdp(),address(a), 100 * 1e18, 50 * 1e18);
     }
 
     function testFail_frob_other2() public {
         (Usr a, Usr b) = init_user();
-        a.join(b.cdp(), 100 * 1e6);
+        a.join(address(adapter), b.cdp(), 100 * 1e6);
         b.cdpAllow(b.cdp(), address(a), 1);
         b.cdpAllow(b.cdp(), address(a), 0);
         a.frob(b.cdp(),address(a), 100 * 1e18, 50 * 1e18);
@@ -762,49 +746,48 @@ contract CharterManagerTest is TestBase {
 
     function test_flux_to_other() public {
         (Usr a, Usr b) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         assertEq(a.gems(), 100 * 1e18);
         a.flux(a.cdp(), b.cdp(), 100 * 1e18);
         assertEq(b.gems(), 100 * 1e18);
-        b.exit(100 * 1e6);
+        b.exit(address(adapter), b.cdp(), address(b), 100 * 1e6);
         assertEq(b.gems(), 0);
         assertEq(gem.balanceOf(address(b)), 300 * 1e6);
     }
-
     function test_flux_yourself() public {
         // Flux to yourself should be a no-op
         (Usr a,) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         assertEq(a.gems(), 100 * 1e18);
         a.flux(a.cdp(), a.cdp(), 100 * 1e18);
         assertEq(a.gems(), 100 * 1e18);
-        a.exit(100 * 1e6);
+        a.exit(address(adapter), a.cdp(), address(a), 100 * 1e6);
         assertEq(a.gems(), 0);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
     }
 
     function test_flux_from_other() public {
         (Usr a, Usr b) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         assertEq(a.gems(), 100 * 1e18);
         a.cdpAllow(a.cdp(), address(b), 1);
         b.flux(a.cdp(), b.cdp(), 100 * 1e18);
         assertEq(a.gems(), 0);
         assertEq(b.gems(), 100 * 1e18);
-        b.exit(100 * 1e6);
+        b.exit(address(adapter), b.cdp(), address(b), 100 * 1e6);
         assertEq(b.gems(), 0);
         assertEq(gem.balanceOf(address(b)), 300 * 1e6);
     }
 
     function testFail_flux_from_other1() public {
         (Usr a, Usr b) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         b.flux(a.cdp(), b.cdp(), 100 * 1e18);
     }
 
     function testFail_flux_from_other2() public {
         (Usr a, Usr b) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         a.cdpAllow(a.cdp(), address(b), 1);
         a.cdpAllow(a.cdp(), address(b), 0);
         b.flux(a.cdp(), b.cdp(), 100 * 1e18);
@@ -812,14 +795,13 @@ contract CharterManagerTest is TestBase {
 
     function testFail_quit() public {
         (Usr a,) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         a.quit();       // Attempt to unbox the urn (should fail when vat is live)
     }
-
     function test_quit() public {
         (Usr a,) = init_user();
-        a.join(100 * 1e6);
+        a.join(address(adapter), a.cdp(), 100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         vat.cage();
         (uint256 ink, uint256 art) = vat.urns(ilk, a.proxy());
@@ -855,11 +837,10 @@ contract CharterManagerTest is TestBase {
         a.fluxDirect(address(a), a.proxy(), 100 * 1e18);
         assertEq(vat.gem(ilk, address(a)), 0);
         assertEq(vat.gem(ilk, a.proxy()), 100 * 1e18);
-        a.exit(100 * 1e6);
+        a.exit(address(adapter), a.cdp(), address(a), 100 * 1e6);
         assertEq(vat.gem(ilk, a.proxy()), 0);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
     }
-
     // Make sure we can't call most functions on the adapter directly
     function testFail_direct_join() public {
         adapter.join(address(this), 0);
@@ -871,7 +852,7 @@ contract CharterManagerTest is TestBase {
     function test_implementation_upgrade() public {
 
         (Usr a,) = init_user();
-        a.join(10 * 1e6);
+        a.join(address(adapter), a.cdp(), 10 * 1e6);
         assertEq(gem.balanceOf(address(a)), 190 * 1e6);
         assertEq(gem.balanceOf(address(adapter)), 10 * 1e6);
         assertEq(a.gems(), 10 * 1e18);
@@ -883,7 +864,7 @@ contract CharterManagerTest is TestBase {
         );
         assertTrue(impl != CharterManager(address(manager)).implementation());
 
-        a.exit(10 * 1e6);
+        a.exit(address(adapter), a.cdp(), address(a), 10 * 1e6);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
         assertEq(gem.balanceOf(address(adapter)), 0);
         assertEq(a.gems(), 0);
