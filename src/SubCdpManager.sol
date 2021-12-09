@@ -39,8 +39,10 @@ contract SubCdpManager {
     address immutable           public mainManager;
 
     mapping (uint256 => address) public urns; // CDPId => UrnHandler
+    mapping (address => address) public urnsByOwners; // Owner => UrnHandler
     mapping (uint256 => address) public owns; // CDPId => Owner
     mapping (uint256 => bytes32) public ilks; // CDPId => Ilk
+
 
     mapping (
         address => mapping (
@@ -86,9 +88,12 @@ contract SubCdpManager {
         address usr
     ) public returns (uint256) {
         require(usr != address(0), "SubCdpManager/usr-address-0");
+        require(urnsByOwners[usr] == address(0), "SubCdpManager/usr-cdp-exists");
 
         uint256 cdpi = MainCdpManagerLike(mainManager).open(ilk, usr);
-        urns[cdpi] = address(new UrnHandler(vat, usr));
+        address urn = address(new UrnHandler(vat, usr));
+        urns[cdpi] = urn;
+        urnsByOwners[usr] = urn;
         owns[cdpi] = usr;
         ilks[cdpi] = ilk;
 

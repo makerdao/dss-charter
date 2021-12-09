@@ -190,6 +190,14 @@ contract CharterManagerImp is ProxyStorage, SubCdpManager {
         ManagedGemJoinLike(gemJoin).exit(urp, usr, amt);
     }
 
+    function exit(address gemJoin, address usr, uint256 amt) external {
+        require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
+
+        address urp = urnsByOwners[msg.sender];
+        require(urp != address(0), "CharterManager/non-existing-urp");
+        ManagedGemJoinLike(gemJoin).exit(urp, usr, amt);
+    }
+
     function _draw(
         bytes32 ilk, address u, address urp, address w, int256 dink, int256 dart, uint256 rate, uint256 _gate
         ) internal {

@@ -218,13 +218,13 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         assertTrue(mul(lot, price) < vat.dai(address(this)));
 
         bytes memory emptyBytes;
-        clipper.take(id, lot, price, manager.urns(cdp), emptyBytes);
+        clipper.take(id, lot, price, address(this), emptyBytes);
 
         (, tab, lot,,,) = clipper.sales(id);
         assertEq(tab, 0);
         assertEq(lot, 0);
 
-        manager.exit(address(join), cdp, address(this), 10**3 * WAD);
+        manager.exit(address(join), address(this), 10**3 * WAD);
         assertEq(gem.balanceOf(address(this)), add(initialGemBal, 10**3 * WAD));
     }
 
@@ -247,7 +247,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         uint256 expectedPurchaseSize = tab / price;
 
         bytes memory emptyBytes;
-        clipper.take(id, lot, price, manager.urns(cdp), emptyBytes);
+        clipper.take(id, lot, price, address(this), emptyBytes);
 
         (, tab, lot,,,) = clipper.sales(id);
         assertEq(tab, 0);
@@ -257,7 +257,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         uint256 collateralReturned = sub(10**3 * WAD, expectedPurchaseSize);
 
         // We can exit
-        manager.exit(address(join), cdp, address(this), expectedPurchaseSize);
+        manager.exit(address(join), address(this), expectedPurchaseSize);
         assertEq(gem.balanceOf(address(this)), add(initialGemBal, expectedPurchaseSize));
 
         // Liquidated urn can exit
@@ -278,7 +278,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
 
         // We can exit if we flux to our UrnProxy.
         vat.flux(ILK, address(this), urp, 10**3 * WAD);
-        manager.exit(address(join), cdp, address(this), 10**3 * WAD);
+        manager.exit(address(join), address(this), 10**3 * WAD);
         assertEq(gem.balanceOf(address(this)), add(initialGemBal, 10**3 * WAD));
     }
 }

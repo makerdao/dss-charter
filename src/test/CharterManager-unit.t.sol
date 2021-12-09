@@ -298,21 +298,11 @@ contract CharterManagerTest is TestBase {
         assertEq(gem.balanceOf(address(b)), 200e6);
     }
 
-    function test_join_multiple_cdps() public {
+    function testFail_join_multiple_cdps() public {
         (Usr a, Usr b) = init_user();
         assertEq(a.cdp(), 1);
         assertEq(b.cdp(), 2);
-        assertEq(a.open(ilk), 3);
-
-        assertEq(gem.balanceOf(address(a)), 200e6);
-        assertEq(gem.balanceOf(address(b)), 200e6);
-
-        // User A sends some gems to User B
-        a.join(address(adapter), 1, 150e6);
-        a.join(address(adapter), 3, 50e6);
-        assertEq(vat.gem(ilk, manager.urns(1)), 150e18);
-        assertEq(vat.gem(ilk, manager.urns(3)), 50e18);
-        assertEq(gem.balanceOf(address(a)), 0);
+        a.open(ilk);
     }
 
     function testFail_exit_unauthorized() public {
