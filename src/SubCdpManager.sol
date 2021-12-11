@@ -27,6 +27,7 @@ interface MainCdpManagerLike {
 interface JoinManagerLike {
     function open(bytes32, address) external returns (uint256);
     function exit(address, address, address, uint256) external;
+    function move(address u, address dst, uint256 rad) external;
     function frob(bytes32, address, address, address, int256, int256) external;
     function flux(bytes32, address, address, uint256) external;
     function quit(bytes32, address, address) external;
@@ -61,7 +62,7 @@ contract SubCdpManager {
 
     mapping (
             address => mapping (
-            address => uint
+            address => uint256
         )
     ) public urnCan;                          // Urn => Allowed Addr => True/False
 
@@ -77,7 +78,7 @@ contract SubCdpManager {
     modifier urnAllowed(
         address urn
     ) {
-        require(msg.sender == urn || urnCan[urn][msg.sender] == 1, "urn-not-allowed");
+        require(msg.sender == urn || urnCan[urn][msg.sender] == 1, "SubCdpManager/urn-not-allowed");
         _;
     }
 
@@ -92,15 +93,15 @@ contract SubCdpManager {
         uint256 cdp,
         address usr,
         uint256 ok
-    ) public cdpAllowed(cdp) {
+    ) external cdpAllowed(cdp) {
         cdpCan[owns[cdp]][cdp][usr] = ok;
     }
 
     // Allow/disallow a usr address to quit to the the sender urn.
     function urnAllow(
         address usr,
-        uint ok
-    ) public {
+        uint256 ok
+    ) external {
         urnCan[msg.sender][usr] = ok;
     }
 
@@ -108,7 +109,7 @@ contract SubCdpManager {
     function open(
         bytes32 ilk,
         address usr
-    ) public returns (uint256) {
+    ) external returns (uint256) {
         require(usr != address(0), "SubCdpManager/usr-address-0");
 
         uint256 cdpi = MainCdpManagerLike(mainManager).open(ilk, usr);
@@ -123,11 +124,11 @@ contract SubCdpManager {
 
     // Exit a user's gems from the vat.
     function exit(
-        uint cdp,
+        uint256 cdp,
         address gemJoin,
         address usr,
         uint256 amt
-    ) public cdpAllowed(cdp) {
+    ) external cdpAllowed(cdp) {
         JoinManagerLike(joinManager).exit(
             gemJoin,
             urns[cdp],
@@ -136,19 +137,27 @@ contract SubCdpManager {
         );
     }
 
+    // Transfer rad internal units of DAI from the cdp address to a dst address.
+    function move(
+        uint256 cdp,
+        address dst,
+        uint256 rad
+    ) external cdpAllowed(cdp) {
+        JoinManagerLike(joinManager).move(urns[cdp], dst, rad);
+    }
+
     // Frob the cdp keeping the generated DAI or collateral freed in the cdp urn address.
     function frob(
-        uint cdp,
-        address w,
-        int dink,
-        int dart
-    ) public cdpAllowed(cdp) {
+        uint256 cdp,
+        int256 dink,
+        int256 dart
+    ) external cdpAllowed(cdp) {
         address urn = urns[cdp];
         JoinManagerLike(joinManager).frob(
             ilks[cdp],
             urn,
             urn,
-            w,
+            urn,
             dink,
             dart
         );
@@ -156,18 +165,18 @@ contract SubCdpManager {
 
     // Transfer wad amount of cdp collateral from the cdp address to a dst address.
     function flux(
-        uint cdp,
+        uint256 cdp,
         address dst,
-        uint wad
-    ) public cdpAllowed(cdp) {
+        uint256 wad
+    ) external cdpAllowed(cdp) {
         JoinManagerLike(joinManager).flux(ilks[cdp], urns[cdp], dst, wad);
     }
 
     // Quit the system, migrating the cdp (ink, art) to a different dst urn
     function quit(
-        uint cdp,
+        uint256 cdp,
         address dst
-    ) public cdpAllowed(cdp) urnAllowed(dst) {
+    ) external cdpAllowed(cdp) urnAllowed(dst) {
         JoinManagerLike(joinManager).quit(
             ilks[cdp],
             urns[cdp],
