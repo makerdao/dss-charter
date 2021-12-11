@@ -186,6 +186,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         gem.approve(address(manager), uint256(-1));
         manager.join(address(join), address(this), 10**4 * WAD);
         manager.frob(ILK, address(this), address(this), address(this), int256(10**4 * WAD), int256(1000 * WAD));
+        manager.move(address(this), address(this), 1000 * RAD);
 
         // Hope the clipper so we can bid.
         vat.hope(address(clipper));
@@ -218,7 +219,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         assertEq(tab, 0);
         assertEq(lot, 0);
 
-        manager.exit(address(join), address(this), 10**3 * WAD);
+        manager.exit(address(join), address(this), address(this), 10**3 * WAD);
         assertEq(gem.balanceOf(address(this)), add(initialGemBal, 10**3 * WAD));
     }
 
@@ -251,7 +252,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         uint256 collateralReturned = sub(10**3 * WAD, expectedPurchaseSize);
 
         // We can exit
-        manager.exit(address(join), address(this), expectedPurchaseSize);
+        manager.exit(address(join), address(this), address(this), expectedPurchaseSize);
         assertEq(gem.balanceOf(address(this)), add(initialGemBal, expectedPurchaseSize));
 
         // Liquidated urn can exit
@@ -272,7 +273,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
 
         // We can exit if we flux to our UrnProxy.
         vat.flux(ILK, address(this), urp, 10**3 * WAD);
-        manager.exit(address(join), address(this), 10**3 * WAD);
+        manager.exit(address(join), address(this), address(this), 10**3 * WAD);
         assertEq(gem.balanceOf(address(this)), add(initialGemBal, 10**3 * WAD));
     }
 }
