@@ -25,6 +25,7 @@ interface MainCdpManagerLike {
 }
 
 interface JoinManagerLike {
+    function getOrCreateProxy(address) external returns (address);
     function open(bytes32, address) external returns (uint256);
     function exit(address, address, address, uint256) external;
     function move(address u, address dst, uint256 rad) external;
@@ -157,7 +158,7 @@ contract SubCdpManager {
             ilks[cdp],
             urn,
             urn,
-            urn,
+            JoinManagerLike(joinManager).getOrCreateProxy(urn),
             dink,
             dart
         );

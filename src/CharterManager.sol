@@ -230,13 +230,14 @@ contract CharterManagerImp {
     }
 
     function _draw(
-        bytes32 ilk, address u, address urp, int256 dink, int256 dart, uint256 rate, uint256 _gate
+        bytes32 ilk, address u, address urp, address w, int256 dink, int256 dart, uint256 rate, uint256 _gate
         ) internal {
         uint256 _nib = (_gate == 1) ? nib[ilk][u] : Nib[ilk];
         uint256 dtab = _mul(rate, uint256(dart)); // rad
         uint256 coin = _wmul(dtab, _nib);         // rad
 
         VatLike(vat).frob(ilk, urp, urp, urp, dink, dart);
+        VatLike(vat).move(urp, w, _sub(dtab, coin));
         VatLike(vat).move(urp, vow, coin);
     }
 
@@ -264,15 +265,15 @@ contract CharterManagerImp {
     }
 
     function frob(bytes32 ilk, address u, address v, address w, int256 dink, int256 dart) external allowed(u) {
-        require(u == v && u == w, "CharterManager/not-matching");
+        require(u == v, "CharterManager/not-matching");
         address urp = getOrCreateProxy(u);
         (, uint256 rate, uint256 spot,,) = VatLike(vat).ilks(ilk);
         uint256 _gate = gate[ilk];
 
         if (dart <= 0) {
-            VatLike(vat).frob(ilk, urp, urp, urp, dink, dart);
+            VatLike(vat).frob(ilk, urp, urp, w, dink, dart);
         } else {
-            _draw(ilk, u, urp, dink, dart, rate, _gate);
+            _draw(ilk, u, urp, w, dink, dart, rate, _gate);
         }
         _validate(ilk, u, urp, dink, dart, rate, spot, _gate);
     }

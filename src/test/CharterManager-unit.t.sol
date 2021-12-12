@@ -53,13 +53,13 @@ contract Usr {
         manager.join(address(adapter), address(this), wad);
     }
     function exit(address adapter_, address usr, uint256 wad) public {
-        manager.exit(address(adapter_), usr, wad);
+        manager.exit(address(adapter_), address(this), usr, wad);
     }
     function exit(address usr, uint256 wad) public {
-        manager.exit(address(adapter), usr, wad);
+        manager.exit(address(adapter), address(this), usr, wad);
     }
     function exit(uint256 wad) public {
-        manager.exit(address(adapter), address(this), wad);
+        manager.exit(address(adapter), address(this), address(this), wad);
     }
     function proxy() public view returns (address) {
         return manager.proxy(address(this));
@@ -95,10 +95,10 @@ contract Usr {
         VatLike(manager.vat()).flux(adapter.ilk(), src, dst, wad);
     }
     function quit() public {
-        manager.quit(adapter.ilk(), address(this));
+        manager.quit(adapter.ilk(), address(this), address(this));
     }
     function quit(address dst) public {
-        manager.quit(adapter.ilk(), dst);
+        manager.quit(adapter.ilk(), address(this), dst);
     }
     function joinDirect(address gemJoin, uint256 wad) public {
         GemJoin5(gemJoin).join(address(this), wad);
@@ -718,11 +718,6 @@ contract CharterManagerTest is TestBase {
         (Usr a,) = init_user();
         a.join(100 * 1e6);
         a.frob(address(a), address(this), address(a), 100 * 1e18, 50 * 1e18);
-    }
-    function testFail_frob3() public {
-        (Usr a,) = init_user();
-        a.join(100 * 1e6);
-        a.frob(address(a), address(a), address(this), 100 * 1e18, 50 * 1e18);
     }
 
     function test_frob_other() public {
