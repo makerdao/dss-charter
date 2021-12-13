@@ -383,8 +383,6 @@ contract DssProxyActionsCharter is Common {
     ) public {
         // Unlocks WETH amount from the CDP
         manager.frob(cdp, -_toInt256(wad), 0);
-        // Moves the amount from the CDP urn to proxy's address
-        manager.flux(cdp, address(this), wad);
         // Exits WETH amount to proxy address as a token
         manager.exit(cdp, ethJoin, address(this), wad);
         // Converts WETH to ETH
@@ -401,8 +399,6 @@ contract DssProxyActionsCharter is Common {
         uint256 wad = _convertTo18(gemJoin, amt);
         // Unlocks token amount from the CDP
         manager.frob(cdp, -_toInt256(wad), 0);
-        // Moves the amount from the CDP urn to proxy's address
-        manager.flux(cdp, address(this), wad);
         // Exits token amount to the user's wallet as a token
         manager.exit(cdp, gemJoin, msg.sender, amt);
     }
@@ -412,9 +408,6 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 wad
     ) public {
-        // Moves the amount from the CDP urn to proxy's address
-        manager.flux(cdp, address(this), wad);
-
         // Exits WETH amount to proxy address as a token
         manager.exit(cdp, ethJoin, address(this), wad);
         // Converts WETH to ETH
@@ -512,7 +505,8 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 wadD
     ) public payable {
-        address urn = charter.getOrCreateProxy(manager.urns(cdp));
+        address urn = manager.urns(cdp);
+        address urp = charter.getOrCreateProxy(urn);
 
         // Receives ETH amount, converts it to WETH and joins it into the vat
         ethJoin_join(ethJoin, urn);
@@ -522,7 +516,7 @@ contract DssProxyActionsCharter is Common {
             _toInt256(msg.value),
             _getDrawDart(
                 jug,
-                urn,
+                urp,
                 manager.ilks(cdp),
                 wadD
             )
@@ -556,7 +550,8 @@ contract DssProxyActionsCharter is Common {
         uint256 amtC,
         uint256 wadD
     ) public {
-        address urn = charter.getOrCreateProxy(manager.urns(cdp));
+        address urn = manager.urns(cdp);
+        address urp = charter.getOrCreateProxy(urn);
         bytes32 ilk = manager.ilks(cdp);
         // Takes token amount from user's wallet and joins into the vat
         gemJoin_join(gemJoin, urn, amtC);
@@ -601,6 +596,7 @@ contract DssProxyActionsCharter is Common {
         uint256 wadD
     ) public {
         address urn = charter.getOrCreateProxy(manager.urns(cdp));
+
         // Joins DAI amount into the vat
         daiJoin_join(daiJoin, urn, wadD);
         // Paybacks debt to the CDP and unlocks WETH amount from it
@@ -708,14 +704,21 @@ contract DssProxyActionsEndCharter is Common {
             EndLike(end).skim(ilk, urn);
             (ink,) = vat.urns(ilk, urn);
         }
-        // Approves the manager to transfer the position to proxy's address in the vat
-        if (vat.can(address(this), address(manager)) == 0) {
-            vat.hope(address(manager));
+        // Approves the charter to transfer the position to proxy's address in the vat
+        if (vat.can(address(this), address(charter)) == 0) {
+            vat.hope(address(charter));
         }
         // Transfers position from CDP to the proxy address
         manager.quit(cdp, address(this));
         // Frees the position and recovers the collateral in the vat registry
         EndLike(end).free(ilk);
+        // Fluxs to the proxy's manager proxy, so it can be pulled out with the managed gem join
+        VatLike(vat).flux(
+            ilk,
+            address(this),
+            charter.getOrCreateProxy(address(this)),
+            ink
+        );
     }
 
     // Public functions
@@ -727,7 +730,7 @@ contract DssProxyActionsEndCharter is Common {
     ) public {
         uint256 wad = _free(end, cdp);
         // Exits WETH amount to proxy address as a token
-        manager.exit(cdp, ethJoin, address(this), wad);
+        charter.exit(ethJoin, address(this), address(this), wad);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wad);
         // Sends ETH back to the user's wallet
@@ -741,7 +744,7 @@ contract DssProxyActionsEndCharter is Common {
     ) public {
         uint256 amt = _free(end, cdp) / 10 ** (18 - GemJoinLike(gemJoin).dec());
         // Exits token amount to the user's wallet as a token
-        manager.exit(cdp, gemJoin, msg.sender, amt);
+        charter.exit(gemJoin, address(this), address(this), amt);
     }
 
     function pack(
