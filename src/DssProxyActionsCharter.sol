@@ -457,12 +457,12 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 wad
     ) public {
-        address urn = charter.getOrCreateProxy(manager.urns(cdp));
+        address urp = charter.getOrCreateProxy(manager.urns(cdp));
         bytes32 ilk = manager.ilks(cdp);
         // Joins DAI amount into the vat
-        daiJoin_join(daiJoin, urn, wad);
+        daiJoin_join(daiJoin, urp, wad);
         // Paybacks debt to the CDP
-        manager.frob(cdp, 0, _getWipeDart(vat.dai(urn), urn, ilk));
+        manager.frob(cdp, 0, _getWipeDart(vat.dai(urp), urp, ilk));
     }
 
     function safeWipe(
@@ -479,12 +479,12 @@ contract DssProxyActionsCharter is Common {
         address daiJoin,
         uint256 cdp
     ) public {
-        address urn = charter.getOrCreateProxy(manager.urns(cdp));
+        address urp = charter.getOrCreateProxy(manager.urns(cdp));
         bytes32 ilk = manager.ilks(cdp);
-        (, uint256 art) = vat.urns(ilk, urn);
+        (, uint256 art) = vat.urns(ilk, urp);
 
         // Joins DAI amount into the vat
-        daiJoin_join(daiJoin, urn, _getWipeAllWad(urn, urn, ilk));
+        daiJoin_join(daiJoin, urp, _getWipeAllWad(urp, urp, ilk));
         // Paybacks debt to the CDP
         manager.frob(cdp, 0, -_toInt256(art));
     }
@@ -595,15 +595,15 @@ contract DssProxyActionsCharter is Common {
         uint256 wadC,
         uint256 wadD
     ) public {
-        address urn = charter.getOrCreateProxy(manager.urns(cdp));
+        address urp = charter.getOrCreateProxy(manager.urns(cdp));
 
         // Joins DAI amount into the vat
-        daiJoin_join(daiJoin, urn, wadD);
+        daiJoin_join(daiJoin, urp, wadD);
         // Paybacks debt to the CDP and unlocks WETH amount from it
         manager.frob(
             cdp,
             -_toInt256(wadC),
-            _getWipeDart(vat.dai(urn), urn, manager.ilks(cdp))
+            _getWipeDart(vat.dai(urp), urp, manager.ilks(cdp))
         );
         // Exits WETH amount to proxy address as a token
         manager.exit(cdp, ethJoin, address(this), wadC);
@@ -619,12 +619,12 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 wadC
     ) public {
-        address urn = charter.getOrCreateProxy(manager.urns(cdp));
+        address urp = charter.getOrCreateProxy(manager.urns(cdp));
         bytes32 ilk = manager.ilks(cdp);
-        (, uint256 art) = vat.urns(ilk, urn);
+        (, uint256 art) = vat.urns(ilk, urp);
 
         // Joins DAI amount into the vat
-        daiJoin_join(daiJoin, urn, _getWipeAllWad(urn, urn, ilk));
+        daiJoin_join(daiJoin, urp, _getWipeAllWad(urp, urp, ilk));
         // Paybacks debt to the CDP and unlocks WETH amount from it
         manager.frob(
             cdp,
@@ -646,15 +646,15 @@ contract DssProxyActionsCharter is Common {
         uint256 amtC,
         uint256 wadD
     ) public {
-        address urn = charter.getOrCreateProxy(manager.urns(cdp));
+        address urp = charter.getOrCreateProxy(manager.urns(cdp));
         // Joins DAI amount into the vat
-        daiJoin_join(daiJoin, urn, wadD);
+        daiJoin_join(daiJoin, urp, wadD);
         uint256 wadC = _convertTo18(gemJoin, amtC);
         // Paybacks debt to the CDP and unlocks token amount from it
         manager.frob(
             cdp,
             -_toInt256(wadC),
-            _getWipeDart(vat.dai(urn), urn, manager.ilks(cdp))
+            _getWipeDart(vat.dai(urp), urp, manager.ilks(cdp))
         );
         // Exits token amount to the user's wallet as a token
         manager.exit(cdp, gemJoin, msg.sender, amtC);
@@ -666,12 +666,12 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 amtC
     ) public {
-        address urn = charter.getOrCreateProxy(manager.urns(cdp));
+        address urp = charter.getOrCreateProxy(manager.urns(cdp));
         bytes32 ilk = manager.ilks(cdp);
-        (, uint256 art) = vat.urns(ilk, urn);
+        (, uint256 art) = vat.urns(ilk, urp);
 
         // Joins DAI amount into the vat
-        daiJoin_join(daiJoin, urn, _getWipeAllWad(urn, urn, ilk));
+        daiJoin_join(daiJoin, urp, _getWipeAllWad(urp, urp, ilk));
         uint256 wadC = _convertTo18(gemJoin, amtC);
         // Paybacks debt to the CDP and unlocks token amount from it
         manager.frob(
@@ -695,14 +695,14 @@ contract DssProxyActionsEndCharter is Common {
         uint256 cdp
     ) internal returns (uint256 ink) {
         bytes32 ilk = manager.ilks(cdp);
-        address urn = charter.getOrCreateProxy(manager.urns(cdp));
+        address urp = charter.getOrCreateProxy(manager.urns(cdp));
         uint256 art;
-        (ink, art) = vat.urns(ilk, urn);
+        (ink, art) = vat.urns(ilk, urp);
 
         // If CDP still has debt, it needs to be paid
         if (art > 0) {
-            EndLike(end).skim(ilk, urn);
-            (ink,) = vat.urns(ilk, urn);
+            EndLike(end).skim(ilk, urp);
+            (ink,) = vat.urns(ilk, urp);
         }
         // Approves the charter to transfer the position to proxy's address in the vat
         if (vat.can(address(this), address(charter)) == 0) {
