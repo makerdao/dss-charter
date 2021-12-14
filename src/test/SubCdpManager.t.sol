@@ -221,21 +221,6 @@ contract SubCdpManagerTest is DssDeployTestBase {
         assertEq(weth.balanceOf(address(this)), prevBalance + 1 ether);
     }
 
-/*
-    function testGetWrongCollateralBack() public {
-        setUpManager();
-        uint256 cdp = manager.open("ETH", address(this));
-        col.mint(1 ether);
-        col.approve(address(colJoin), 1 ether);
-        colJoin.join(manager.urns(cdp), 1 ether);
-        assertEq(vat.gem("COL", manager.urns(cdp)), 1 ether);
-        assertEq(vat.gem("COL", address(this)), 0);
-        manager.flux("COL", cdp, address(this), 1 ether);
-        assertEq(vat.gem("COL", manager.urns(cdp)), 0);
-        assertEq(vat.gem("COL", address(this)), 1 ether);
-    }
-*/
-
     function testQuit() public {
         setUpManager();
         uint256 cdp = manager.open("ETH", address(this));
@@ -257,7 +242,7 @@ contract SubCdpManagerTest is DssDeployTestBase {
         // give up auth in vat
         HevmLike(address(hevm)).store(address(vat), keccak256(abi.encode(address(this), 0)), bytes32(uint256(0)));
 
-        vat.hope(address(charter)); // dst has to approve charter in the for the fork
+        vat.hope(address(charter)); // dst has to approve charter for the fork
         manager.quit(cdp, address(this));
         (ink, art) = vat.urns("ETH", charter.proxy(manager.urns(cdp)));
         assertEq(ink, 0);
@@ -266,26 +251,33 @@ contract SubCdpManagerTest is DssDeployTestBase {
         assertEq(ink, 1 ether);
         assertEq(art, 50 ether);
     }
-/*
+
     function testQuitOtherDst() public {
         setUpManager();
         uint256 cdp = manager.open("ETH", address(this));
+        charterEthUrn(cdp);
         weth.mint(1 ether);
-        weth.approve(address(ethJoin), 1 ether);
-        ethJoin.join(manager.urns(cdp), 1 ether);
+        weth.approve(address(charter), 1 ether);
+        charter.join(address(adapter), manager.urns(cdp), 1 ether);
         manager.frob(cdp, 1 ether, 50 ether);
 
-        (uint256 ink, uint256 art) = vat.urns("ETH", manager.urns(cdp));
+        (uint256 ink, uint256 art) = vat.urns("ETH", charter.proxy(manager.urns(cdp)));
         assertEq(ink, 1 ether);
         assertEq(art, 50 ether);
         (ink, art) = vat.urns("ETH", address(this));
         assertEq(ink, 0);
         assertEq(art, 0);
 
-        user.doHope(vat, address(manager));
+        // get auth in vat
+        HevmLike(address(hevm)).store(address(vat), keccak256(abi.encode(address(this), 0)), bytes32(uint256(1)));
+        vat.cage();
+        // give up auth in vat
+        HevmLike(address(hevm)).store(address(vat), keccak256(abi.encode(address(this), 0)), bytes32(uint256(0)));
+
+        user.doHope(vat, address(charter)); // dst has to approve charter for the fork
         user.doUrnAllow(manager, address(this), 1);
         manager.quit(cdp, address(user));
-        (ink, art) = vat.urns("ETH", manager.urns(cdp));
+        (ink, art) = vat.urns("ETH", charter.proxy(manager.urns(cdp)));
         assertEq(ink, 0);
         assertEq(art, 0);
         (ink, art) = vat.urns("ETH", address(user));
@@ -296,20 +288,27 @@ contract SubCdpManagerTest is DssDeployTestBase {
     function testFailQuitOtherDst() public {
         setUpManager();
         uint256 cdp = manager.open("ETH", address(this));
+        charterEthUrn(cdp);
         weth.mint(1 ether);
-        weth.approve(address(ethJoin), 1 ether);
-        ethJoin.join(manager.urns(cdp), 1 ether);
+        weth.approve(address(charter), 1 ether);
+        charter.join(address(adapter), manager.urns(cdp), 1 ether);
         manager.frob(cdp, 1 ether, 50 ether);
 
-        (uint256 ink, uint256 art) = vat.urns("ETH", manager.urns(cdp));
+        (uint256 ink, uint256 art) = vat.urns("ETH", charter.proxy(manager.urns(cdp)));
         assertEq(ink, 1 ether);
         assertEq(art, 50 ether);
         (ink, art) = vat.urns("ETH", address(this));
         assertEq(ink, 0);
         assertEq(art, 0);
 
-        user.doHope(vat, address(manager));
+        // get auth in vat
+        HevmLike(address(hevm)).store(address(vat), keccak256(abi.encode(address(this), 0)), bytes32(uint256(1)));
+        vat.cage();
+        // give up auth in vat
+        HevmLike(address(hevm)).store(address(vat), keccak256(abi.encode(address(this), 0)), bytes32(uint256(0)));
+
+        user.doHope(vat, address(charter)); // dst has to approve charter for the fork
         manager.quit(cdp, address(user));
     }
-*/
 }
+
