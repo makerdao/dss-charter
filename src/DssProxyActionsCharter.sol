@@ -744,7 +744,7 @@ contract DssProxyActionsEndCharter is Common {
     ) public {
         uint256 amt = _free(end, cdp) / 10 ** (18 - GemJoinLike(gemJoin).dec());
         // Exits token amount to the user's wallet as a token
-        charter.exit(gemJoin, address(this), address(this), amt);
+        charter.exit(gemJoin, address(this), msg.sender, amt);
     }
 
     function pack(

@@ -192,12 +192,12 @@ contract ProxyCalls {
         proxy.execute(dssProxyActionsEnd, abi.encodeWithSignature("pack(address,address,uint256)", a, b, c));
     }
 
-    function end_cashETH(address a, address b, bytes32 c, uint256 d) public {
-        proxy.execute(dssProxyActionsEnd, abi.encodeWithSignature("cashETH(address,address,bytes32,uint256)", a, b, c, d));
+    function end_cashETH(address a, address b, uint256 c) public {
+        proxy.execute(dssProxyActionsEnd, abi.encodeWithSignature("cashETH(address,address,uint256)", a, b, c));
     }
 
-    function end_cashGem(address a, address b, bytes32 c, uint256 d) public {
-        proxy.execute(dssProxyActionsEnd, abi.encodeWithSignature("cashGem(address,address,bytes32,uint256)", a, b, c, d));
+    function end_cashGem(address a, address b, uint256 c) public {
+        proxy.execute(dssProxyActionsEnd, abi.encodeWithSignature("cashGem(address,address,uint256)", a, b, c));
     }
 }
 
@@ -633,8 +633,8 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         dai.approve(address(proxy), 305 ether);
         this.end_pack(address(daiJoin), address(end), 305 ether);
 
-        this.end_cashETH(address(ethManagedJoin), address(end), "ETH", 305 ether);
-        this.end_cashGem(address(wbtcJoin), address(end), "WBTC", 305 ether);
+        this.end_cashETH(address(ethManagedJoin), address(end), 305 ether);
+        this.end_cashGem(address(wbtcJoin), address(end), 305 ether);
 
         assertEq(address(this).balance, prevBalanceETH + 2 ether - 1); // (-1 rounding)
         assertEq(wbtc.balanceOf(address(this)), prevBalanceWBTC + 1 * 10 ** 8 - 1); // (-1 rounding)
