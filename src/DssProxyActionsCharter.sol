@@ -30,9 +30,9 @@ interface GemLike {
 interface CharterLike {
     function getOrCreateProxy(address) external returns (address);
     function join(address, address, uint256) external;
-    function exit(address, address, uint256) external;
+    function exit(address, address, address, uint256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
-    function quit(bytes32 ilk, address dst) external;
+    function quit(bytes32, address, address) external;
     function gate(bytes32) external view returns (uint256);
     function Nib(bytes32) external view returns (uint256);
     function nib(bytes32, address) external view returns (uint256);
@@ -257,7 +257,7 @@ contract DssProxyActionsCharter is Common {
         bytes32 ilk,
         address dst
     ) external {
-        CharterLike(charter).quit(ilk, dst);
+        CharterLike(charter).quit(ilk, address(this), dst);
     }
 
     function lockETH(address ethJoin) external payable {
@@ -284,7 +284,7 @@ contract DssProxyActionsCharter is Common {
         // Unlocks WETH amount from the CDP
         _frob(GemJoinLike(ethJoin).ilk(), -_toInt256(wad), 0);
         // Exits WETH amount to proxy address as a token
-        CharterLike(charter).exit(ethJoin, address(this), wad);
+        CharterLike(charter).exit(ethJoin, address(this), address(this), wad);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wad);
         // Sends ETH back to the user's wallet
@@ -298,7 +298,7 @@ contract DssProxyActionsCharter is Common {
         // Unlocks token amount from the CDP
         _frob(GemJoinLike(gemJoin).ilk(), -_toInt256(_convertTo18(gemJoin, amt)), 0);
         // Exits token amount to the user's wallet as a token
-        CharterLike(charter).exit(gemJoin, msg.sender, amt);
+        CharterLike(charter).exit(gemJoin, address(this), msg.sender, amt);
     }
 
     function exitETH(
@@ -306,7 +306,7 @@ contract DssProxyActionsCharter is Common {
         uint256 wad
     ) external {
         // Exits WETH amount to proxy address as a token
-        CharterLike(charter).exit(ethJoin, address(this), wad);
+        CharterLike(charter).exit(ethJoin, address(this), address(this), wad);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wad);
         // Sends ETH back to the user's wallet
@@ -318,7 +318,7 @@ contract DssProxyActionsCharter is Common {
         uint256 amt
     ) external {
         // Exits token amount to the user's wallet as a token
-        CharterLike(charter).exit(gemJoin, msg.sender, amt);
+        CharterLike(charter).exit(gemJoin, address(this), msg.sender, amt);
     }
 
     function draw(
@@ -459,7 +459,7 @@ contract DssProxyActionsCharter is Common {
         // Denies charter to access to proxy's DAI balance in the vat after execution
         VatLike(vat).nope(charter);
         // Exits WETH amount to proxy address as a token
-        CharterLike(charter).exit(ethJoin, address(this), wadC);
+        CharterLike(charter).exit(ethJoin, address(this), address(this), wadC);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wadC);
         // Sends ETH back to the user's wallet
@@ -484,7 +484,7 @@ contract DssProxyActionsCharter is Common {
         // Denies charter to access to proxy's DAI balance in the vat after execution
         VatLike(vat).nope(charter);
         // Exits WETH amount to proxy address as a token
-        CharterLike(charter).exit(ethJoin, address(this), wadC);
+        CharterLike(charter).exit(ethJoin, address(this), address(this), wadC);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wadC);
         // Sends ETH back to the user's wallet
@@ -516,7 +516,7 @@ contract DssProxyActionsCharter is Common {
         // Denies charter to access to proxy's DAI balance in the vat after execution
         VatLike(vat).nope(charter);
         // Exits token amount to the user's wallet as a token
-        CharterLike(charter).exit(gemJoin, msg.sender, amtC);
+        CharterLike(charter).exit(gemJoin, address(this), msg.sender, amtC);
     }
 
     function wipeAllAndFreeGem(
@@ -537,7 +537,7 @@ contract DssProxyActionsCharter is Common {
         // Denies charter to access to proxy's DAI balance in the vat after execution
         VatLike(vat).nope(charter);
         // Exits token amount to the user's wallet as a token
-        CharterLike(charter).exit(gemJoin, msg.sender, amtC);
+        CharterLike(charter).exit(gemJoin, address(this), msg.sender, amtC);
     }
 }
 
@@ -563,7 +563,7 @@ contract DssProxyActionsEndCharter is Common {
         // Approves the charter to transfer the position to proxy's address in the vat
         VatLike(vat).hope(charter);
         // Transfers position from CDP to the proxy address
-        CharterLike(charter).quit(ilk, address(this));
+        CharterLike(charter).quit(ilk, address(this), address(this));
         // Denies charter to access to proxy's position in the vat after execution
         VatLike(vat).nope(charter);
         // Frees the position and recovers the collateral in the vat registry
@@ -587,7 +587,7 @@ contract DssProxyActionsEndCharter is Common {
         // Frees the position through the end contract
         uint256 wad = _free(end, ilk);
         // Exits WETH amount to proxy address as a token
-        CharterLike(charter).exit(ethJoin, address(this), wad);
+        CharterLike(charter).exit(ethJoin, address(this), address(this), wad);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wad);
         // Sends ETH back to the user's wallet
@@ -604,7 +604,7 @@ contract DssProxyActionsEndCharter is Common {
         uint256 wad = _free(end, ilk);
         // Exits token amount to the user's wallet as a token
         uint256 amt = wad / 10 ** (18 - GemJoinLike(gemJoin).dec());
-        CharterLike(charter).exit(gemJoin, msg.sender, amt);
+        CharterLike(charter).exit(gemJoin, address(this), msg.sender, amt);
     }
 
     function pack(
@@ -637,7 +637,7 @@ contract DssProxyActionsEndCharter is Common {
             wadC
         );
         // Exits WETH amount to proxy address as a token
-        CharterLike(charter).exit(ethJoin, address(this), wadC);
+        CharterLike(charter).exit(ethJoin, address(this), address(this), wadC);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wadC);
         // Sends ETH back to the user's wallet
@@ -661,6 +661,6 @@ contract DssProxyActionsEndCharter is Common {
         );
         // Exits token amount to the user's wallet as a token
         uint256 amt = wadC / 10 ** (18 - GemJoinLike(gemJoin).dec());
-        CharterLike(charter).exit(gemJoin, msg.sender, amt);
+        CharterLike(charter).exit(gemJoin, address(this), msg.sender, amt);
     }
 }
