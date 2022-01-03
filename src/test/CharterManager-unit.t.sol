@@ -52,14 +52,14 @@ contract Usr {
     function join(uint256 wad) public {
         manager.join(address(adapter), address(this), wad);
     }
-    function exit(address adapter_, address u, address usr, uint256 wad) public {
-        manager.exit(address(adapter_), u, usr, wad);
+    function exit(address adapter_, address usr, uint256 wad) public {
+        manager.exit(address(adapter_), usr, wad);
     }
     function exit(address usr, uint256 wad) public {
-        manager.exit(address(adapter), address(this), usr, wad);
+        manager.exit(address(adapter), usr, wad);
     }
     function exit(uint256 wad) public {
-        manager.exit(address(adapter), address(this), address(this), wad);
+        manager.exit(address(adapter), address(this), wad);
     }
     function proxy() public view returns (address) {
         return manager.proxy(address(this));
@@ -397,9 +397,11 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 200 * 1e18);
         assertEq(gem.balanceOf(address(a)), 0);
 
-        a.hope(address(b))  ;
-        b.exit(address(adapter), address(a), address(a), 200 * 1e6);
+        a.hope(address(b));
+        b.flux(address(a), address(b), 200 * 1e18);
+        b.exit(address(a), 200 * 1e6);
         assertEq(a.gems(), 0);
+        assertEq(b.gems(), 0);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
     }
 
@@ -411,7 +413,20 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 200 * 1e18);
         assertEq(gem.balanceOf(address(a)), 0);
 
-        b.exit(address(adapter), address(a), address(a), 200 * 1e6);
+        // b can not exit a's funds
+        b.exit(address(a), 200 * 1e6);
+    }
+
+    function testFail_flux_before_exit_other() public {
+        (Usr a, Usr b) = init_user();
+        assertEq(gem.balanceOf(address(a)), 200 * 1e6);
+
+        a.join(200 * 1e6);
+        assertEq(a.gems(), 200 * 1e18);
+        assertEq(gem.balanceOf(address(a)), 0);
+
+        // flux should fail since a does not hope b
+        b.flux(address(a), address(b), 200 * 1e18);
     }
 
     function test_exit_maintains_peace() public {
@@ -748,7 +763,7 @@ contract CharterManagerTest is TestBase {
         a.frob(address(a), address(this), address(a), 100 * 1e18, 50 * 1e18);
     }
 
-    function test_frob_other() public {
+    function test_frob_other_u() public {
         (Usr a, Usr b) = init_user();
         assertEq(a.gems(), 0);
         assertEq(b.gems(), 0);
@@ -773,18 +788,47 @@ contract CharterManagerTest is TestBase {
         assertEq(b.gems(), 100 * 1e18);
     }
 
-    function testFail_frob_other1() public {
+    function testFail_frob_other_u_1() public {
         (Usr a, Usr b) = init_user();
         a.join(address(b), 100 * 1e6);
         a.frob(address(b), address(b), address(a), 100 * 1e18, 50 * 1e18);
     }
 
-    function testFail_frob_other2() public {
+    function testFail_frob_other_u_2() public {
         (Usr a, Usr b) = init_user();
         a.join(address(b), 100 * 1e6);
         b.hope(address(a));
         b.nope(address(a));
         a.frob(address(b), address(b), address(a), 100 * 1e18, 50 * 1e18);
+    }
+
+    function test_frob_other_w() public {
+        init_ilk_ungate(0, 0);
+        (Usr a, Usr b) = init_user();
+        b.join(100 * 1e6);
+        b.hope(address(a));
+        a.frob(address(b), address(b), address(b), 100 * 1e18, 50 * 1e18);
+        (uint256 ink, uint256 art) = b.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        assertEq(b.dai(), 50 * 1e45);
+        assertEq(a.gems(), 0);
+        assertEq(b.gems(), 0);
+        a.frob(address(b), address(b), address(b), -100 * 1e18, -50 * 1e18);
+        (ink, art) = b.urn();
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(a.dai(), 0);
+        assertEq(b.dai(), 0);
+        assertEq(b.gems(), 100 * 1e18);
+    }
+
+    function testFail_frob_other_w() public {
+        init_ilk_ungate(0, 0);
+        (Usr a, Usr b) = init_user();
+        a.join(100 * 1e6);
+        // a can not frob to/from b without permission
+        a.frob(address(a), address(a), address(b), 100 * 1e18, 50 * 1e18);
     }
 
     function test_flux_to_other() public {
@@ -920,6 +964,7 @@ contract CharterManagerTest is TestBase {
         assertEq(ink, 0);
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(a)), 0);
+        // b is not allowed to quit a
         b.quit(address(a), address(a));
     }
 
