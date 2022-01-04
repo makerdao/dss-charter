@@ -61,6 +61,9 @@ contract Usr {
     function exit(uint256 wad) public {
         manager.exit(address(adapter), address(this), wad);
     }
+    function move(address gemJoin, address usr, uint256 amt) public {
+        manager.move(gemJoin, usr, amt);
+    }
     function proxy() public view returns (address) {
         return manager.proxy(address(this));
     }
@@ -463,6 +466,48 @@ contract CharterManagerTest is TestBase {
         assertEq(art, 0);
         assertEq(a.dai(), 0);
         assertEq(a.gems(), 100 * 1e18);
+    }
+
+    function test_move() public {
+        (Usr a,) = init_user();
+        cheat_get_dai(address(this), 2 * 1e18);
+        dai.approve(address(daiJoin), 2 * 1e18);
+
+        manager.getOrCreateProxy(address(a));
+        daiJoin.join(a.proxy(), 2 * 1e18);
+        assertEq(vat.dai(a.proxy()), 2 * 1e45);
+
+        a.move(address(a), address(this), 2 * 1e45);
+        assertEq(vat.dai(a.proxy()), 0);
+        assertEq(vat.dai(address(this)), 2 * 1e45);
+    }
+
+    function test_move_other() public {
+        (Usr a, Usr b) = init_user();
+        cheat_get_dai(address(this), 2 * 1e18);
+        dai.approve(address(daiJoin), 2 * 1e18);
+
+        manager.getOrCreateProxy(address(a));
+        daiJoin.join(a.proxy(), 2 * 1e18);
+        assertEq(vat.dai(a.proxy()), 2 * 1e45);
+
+        a.hope(address(b));
+        b.move(address(a), address(this), 2 * 1e45);
+        assertEq(vat.dai(a.proxy()), 0);
+        assertEq(vat.dai(address(this)), 2 * 1e45);
+    }
+
+    function testFail_move_other() public {
+        (Usr a, Usr b) = init_user();
+        cheat_get_dai(address(this), 2 * 1e18);
+        dai.approve(address(daiJoin), 2 * 1e18);
+
+        manager.getOrCreateProxy(address(a));
+        daiJoin.join(a.proxy(), 2 * 1e18);
+        assertEq(vat.dai(a.proxy()), 2 * 1e45);
+
+        // b is not authorized to to move dai from a's proxy
+        b.move(address(a), address(this), 2 * 1e45);
     }
 
     function testFail_frob_ungate_below_Peace() public {

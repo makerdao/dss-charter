@@ -222,6 +222,13 @@ contract CharterManagerImp {
         ManagedGemJoinLike(gemJoin).exit(urp, usr, amt);
     }
 
+    function move(address u, address dst, uint256 rad) external allowed(u) {
+        address urp = proxy[u];
+        require(urp != address(0), "CharterManager/non-existing-urp");
+
+        VatLike(vat).move(urp, dst, rad);
+    }
+
     function _draw(
         bytes32 ilk, address u, address urp, address w, int256 dink, int256 dart, uint256 rate, uint256 _gate
         ) internal {
