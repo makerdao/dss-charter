@@ -214,19 +214,12 @@ contract CharterManagerImp {
         ManagedGemJoinLike(gemJoin).join(getOrCreateProxy(usr), amt);
     }
 
-    function exit(address gemJoin, address u, address usr, uint256 amt) external allowed(u) {
+    function exit(address gemJoin, address usr, uint256 amt) external {
         require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
 
-        address urp = proxy[u];
+        address urp = proxy[msg.sender];
         require(urp != address(0), "CharterManager/non-existing-urp");
         ManagedGemJoinLike(gemJoin).exit(urp, usr, amt);
-    }
-
-    function move(address u, address dst, uint256 rad) external allowed(u) {
-        address urp = proxy[u];
-        require(urp != address(0), "CharterManager/non-existing-urp");
-
-        VatLike(vat).move(urp, dst, rad);
     }
 
     function _draw(
@@ -264,7 +257,7 @@ contract CharterManagerImp {
         }
     }
 
-    function frob(bytes32 ilk, address u, address v, address w, int256 dink, int256 dart) external allowed(u) {
+    function frob(bytes32 ilk, address u, address v, address w, int256 dink, int256 dart) external allowed(u) allowed(w) {
         require(u == v, "CharterManager/not-matching");
         address urp = getOrCreateProxy(u);
         (, uint256 rate, uint256 spot,,) = VatLike(vat).ilks(ilk);

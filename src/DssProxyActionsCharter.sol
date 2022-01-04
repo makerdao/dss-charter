@@ -30,7 +30,7 @@ interface GemLike {
 interface CharterLike {
     function getOrCreateProxy(address) external returns (address);
     function join(address, address, uint256) external;
-    function exit(address, address, address, uint256) external;
+    function exit(address, address, uint256) external;
     function gate(bytes32) external view returns (uint256);
     function Nib(bytes32) external view returns (uint256);
     function nib(bytes32, address) external view returns (uint256);
@@ -48,9 +48,7 @@ interface ManagerLike {
     function frob(uint256, int256, int256) external;
     function flux(uint256, address, uint256) external;
     function move(uint256, address, uint256) external;
-    function exit(address, uint256, address, uint256) external;
     function quit(uint256, address) external;
-    function exit(uint256, address, address, uint256) external;
 }
 
 interface VatLike {
@@ -383,8 +381,10 @@ contract DssProxyActionsCharter is Common {
     ) public {
         // Unlocks WETH amount from the CDP
         manager.frob(cdp, -_toInt256(wad), 0);
+        // Moves the amount from the CDP urn to proxy's address
+        flux(cdp, address(this), wad);
         // Exits WETH amount to proxy address as a token
-        manager.exit(cdp, ethJoin, address(this), wad);
+        CharterLike(charter).exit(ethJoin, address(this), wad);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wad);
         // Sends ETH back to the user's wallet
@@ -399,8 +399,10 @@ contract DssProxyActionsCharter is Common {
         uint256 wad = _convertTo18(gemJoin, amt);
         // Unlocks token amount from the CDP
         manager.frob(cdp, -_toInt256(wad), 0);
+        // Moves the amount from the CDP urn to proxy's address
+        flux(cdp, address(this), wad);
         // Exits token amount to the user's wallet as a token
-        manager.exit(cdp, gemJoin, msg.sender, amt);
+        CharterLike(charter).exit(gemJoin, msg.sender, amt);
     }
 
     function exitETH(
@@ -408,8 +410,10 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 wad
     ) public {
+        // Moves the amount from the CDP urn to proxy's address
+        flux(cdp, address(this), wad);
         // Exits WETH amount to proxy address as a token
-        manager.exit(cdp, ethJoin, address(this), wad);
+        CharterLike(charter).exit(ethJoin, address(this), wad);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wad);
         // Sends ETH back to the user's wallet
@@ -421,8 +425,10 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 amt
     ) public {
+        // Moves the amount from the CDP urn to proxy's address
+        flux(cdp, address(this), _convertTo18(gemJoin, amt));
         // Exits token amount to the user's wallet as a token
-        manager.exit(cdp, gemJoin, msg.sender, amt);
+        CharterLike(charter).exit(gemJoin, msg.sender, amt);
     }
 
     function draw(
@@ -457,12 +463,13 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 wad
     ) public {
-        address urp = charter.getOrCreateProxy(manager.urns(cdp));
+        address urn = manager.urns(cdp);
+        address urp = charter.getOrCreateProxy(urn);
         bytes32 ilk = manager.ilks(cdp);
         // Joins DAI amount into the vat
-        daiJoin_join(daiJoin, urp, wad);
+        daiJoin_join(daiJoin, urn, wad);
         // Paybacks debt to the CDP
-        manager.frob(cdp, 0, _getWipeDart(vat.dai(urp), urp, ilk));
+        manager.frob(cdp, 0, _getWipeDart(vat.dai(urn), urp, ilk));
     }
 
     function safeWipe(
@@ -479,12 +486,13 @@ contract DssProxyActionsCharter is Common {
         address daiJoin,
         uint256 cdp
     ) public {
-        address urp = charter.getOrCreateProxy(manager.urns(cdp));
+        address urn = manager.urns(cdp);
+        address urp = charter.getOrCreateProxy(urn);
         bytes32 ilk = manager.ilks(cdp);
         (, uint256 art) = vat.urns(ilk, urp);
 
         // Joins DAI amount into the vat
-        daiJoin_join(daiJoin, urp, _getWipeAllWad(urp, urp, ilk));
+        daiJoin_join(daiJoin, urn, _getWipeAllWad(urn, urp, ilk));
         // Paybacks debt to the CDP
         manager.frob(cdp, 0, -_toInt256(art));
     }
@@ -595,18 +603,21 @@ contract DssProxyActionsCharter is Common {
         uint256 wadC,
         uint256 wadD
     ) public {
-        address urp = charter.getOrCreateProxy(manager.urns(cdp));
+        address urn = manager.urns(cdp);
+        address urp = charter.getOrCreateProxy(urn);
 
         // Joins DAI amount into the vat
-        daiJoin_join(daiJoin, urp, wadD);
+        daiJoin_join(daiJoin, urn, wadD);
         // Paybacks debt to the CDP and unlocks WETH amount from it
         manager.frob(
             cdp,
             -_toInt256(wadC),
-            _getWipeDart(vat.dai(urp), urp, manager.ilks(cdp))
+            _getWipeDart(vat.dai(urn), urp, manager.ilks(cdp))
         );
+        // Moves the amount from the CDP urn to proxy's address
+        flux(cdp, address(this), wadC);
         // Exits WETH amount to proxy address as a token
-        manager.exit(cdp, ethJoin, address(this), wadC);
+        CharterLike(charter).exit(ethJoin, address(this), wadC);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wadC);
         // Sends ETH back to the user's wallet
@@ -619,20 +630,23 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 wadC
     ) public {
-        address urp = charter.getOrCreateProxy(manager.urns(cdp));
+        address urn = manager.urns(cdp);
+        address urp = charter.getOrCreateProxy(urn);
         bytes32 ilk = manager.ilks(cdp);
         (, uint256 art) = vat.urns(ilk, urp);
 
         // Joins DAI amount into the vat
-        daiJoin_join(daiJoin, urp, _getWipeAllWad(urp, urp, ilk));
+        daiJoin_join(daiJoin, urn, _getWipeAllWad(urn, urp, ilk));
         // Paybacks debt to the CDP and unlocks WETH amount from it
         manager.frob(
             cdp,
             -_toInt256(wadC),
             -_toInt256(art)
         );
+        // Moves the amount from the CDP urn to proxy's address
+        flux(cdp, address(this), wadC);
         // Exits WETH amount to proxy address as a token
-        manager.exit(cdp, ethJoin, address(this), wadC);
+        CharterLike(charter).exit(ethJoin, address(this), wadC);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wadC);
         // Sends ETH back to the user's wallet
@@ -646,18 +660,21 @@ contract DssProxyActionsCharter is Common {
         uint256 amtC,
         uint256 wadD
     ) public {
-        address urp = charter.getOrCreateProxy(manager.urns(cdp));
+        address urn = manager.urns(cdp);
+        address urp = charter.getOrCreateProxy(urn);
         // Joins DAI amount into the vat
-        daiJoin_join(daiJoin, urp, wadD);
+        daiJoin_join(daiJoin, urn, wadD);
         uint256 wadC = _convertTo18(gemJoin, amtC);
         // Paybacks debt to the CDP and unlocks token amount from it
         manager.frob(
             cdp,
             -_toInt256(wadC),
-            _getWipeDart(vat.dai(urp), urp, manager.ilks(cdp))
+            _getWipeDart(vat.dai(urn), urp, manager.ilks(cdp))
         );
+        // Moves the amount from the CDP urn to proxy's address
+        flux(cdp, address(this), wadC);
         // Exits token amount to the user's wallet as a token
-        manager.exit(cdp, gemJoin, msg.sender, amtC);
+        CharterLike(charter).exit(gemJoin, msg.sender, amtC);
     }
 
     function wipeAllAndFreeGem(
@@ -666,12 +683,13 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 amtC
     ) public {
-        address urp = charter.getOrCreateProxy(manager.urns(cdp));
+        address urn = manager.urns(cdp);
+        address urp = charter.getOrCreateProxy(urn);
         bytes32 ilk = manager.ilks(cdp);
         (, uint256 art) = vat.urns(ilk, urp);
 
         // Joins DAI amount into the vat
-        daiJoin_join(daiJoin, urp, _getWipeAllWad(urp, urp, ilk));
+        daiJoin_join(daiJoin, urn, _getWipeAllWad(urn, urp, ilk));
         uint256 wadC = _convertTo18(gemJoin, amtC);
         // Paybacks debt to the CDP and unlocks token amount from it
         manager.frob(
@@ -679,8 +697,10 @@ contract DssProxyActionsCharter is Common {
             -_toInt256(wadC),
             -_toInt256(art)
         );
+        // Moves the amount from the CDP urn to proxy's address
+        flux(cdp, address(this), wadC);
         // Exits token amount to the user's wallet as a token
-        manager.exit(cdp, gemJoin, msg.sender, amtC);
+        CharterLike(charter).exit(gemJoin, msg.sender, amtC);
     }
 }
 
@@ -730,7 +750,7 @@ contract DssProxyActionsEndCharter is Common {
     ) public {
         uint256 wad = _free(end, cdp);
         // Exits WETH amount to proxy address as a token
-        charter.exit(ethJoin, address(this), address(this), wad);
+        charter.exit(ethJoin, address(this), wad);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wad);
         // Sends ETH back to the user's wallet
@@ -744,7 +764,7 @@ contract DssProxyActionsEndCharter is Common {
     ) public {
         uint256 amt = _free(end, cdp) / 10 ** (18 - GemJoinLike(gemJoin).dec());
         // Exits token amount to the user's wallet as a token
-        charter.exit(gemJoin, address(this), msg.sender, amt);
+        charter.exit(gemJoin, msg.sender, amt);
     }
 
     function pack(
@@ -777,7 +797,7 @@ contract DssProxyActionsEndCharter is Common {
             wadC
         );
         // Exits WETH amount to proxy address as a token
-        CharterLike(charter).exit(ethJoin, address(this), address(this), wadC);
+        CharterLike(charter).exit(ethJoin, address(this), wadC);
         // Converts WETH to ETH
         GemJoinLike(ethJoin).gem().withdraw(wadC);
         // Sends ETH back to the user's wallet
@@ -801,6 +821,6 @@ contract DssProxyActionsEndCharter is Common {
         );
         // Exits token amount to the user's wallet as a token
         uint256 amt = wadC / 10 ** (18 - GemJoinLike(gemJoin).dec());
-        CharterLike(charter).exit(gemJoin, address(this), msg.sender, amt);
+        CharterLike(charter).exit(gemJoin, msg.sender, amt);
     }
 }

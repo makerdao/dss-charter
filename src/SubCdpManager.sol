@@ -27,19 +27,24 @@ interface MainCdpManagerLike {
 interface JoinManagerLike {
     function getOrCreateProxy(address) external returns (address);
     function open(bytes32, address) external returns (uint256);
-    function exit(address, address, address, uint256) external;
     function move(address u, address dst, uint256 rad) external;
     function frob(bytes32, address, address, address, int256, int256) external;
     function flux(bytes32, address, address, uint256) external;
     function quit(bytes32, address, address) external;
 }
 
+interface VatInterface {
+    function move(address, address, uint256) external;
+}
+
 contract UrnHandler {
     address immutable public usr;
 
-    constructor(address joinManager_, address usr_) public {
+    constructor(address joinManager_, address vat_, address usr_) public {
         usr = usr_;
-        Hopelike(joinManager_).hope(msg.sender);
+        Hopelike(joinManager_).hope(msg.sender); // needed so cdp-manager can perform operations in joinManager on behalf of this urn
+        Hopelike(vat_).hope(joinManager_);       // needed to joinManager.frob() dai from the address of this urn (check on w)
+        Hopelike(vat_).hope(msg.sender);         // needed so cdp-manager can move out dai from this urn
     }
 }
 
@@ -114,7 +119,7 @@ contract SubCdpManager {
         require(usr != address(0), "SubCdpManager/usr-address-0");
 
         uint256 cdpi = MainCdpManagerLike(mainManager).open(ilk, usr);
-        address urn = address(new UrnHandler(joinManager, usr));
+        address urn = address(new UrnHandler(joinManager, vat, usr));
         urns[cdpi] = urn;
         owns[cdpi] = usr;
         ilks[cdpi] = ilk;
@@ -123,28 +128,13 @@ contract SubCdpManager {
         return cdpi;
     }
 
-    // Exit a user's gems from the vat.
-    function exit(
-        uint256 cdp,
-        address gemJoin,
-        address usr,
-        uint256 amt
-    ) external cdpAllowed(cdp) {
-        JoinManagerLike(joinManager).exit(
-            gemJoin,
-            urns[cdp],
-            usr,
-            amt
-        );
-    }
-
     // Transfer rad internal units of DAI from the cdp address to a dst address.
     function move(
         uint256 cdp,
         address dst,
         uint256 rad
     ) external cdpAllowed(cdp) {
-        JoinManagerLike(joinManager).move(urns[cdp], dst, rad);
+        VatInterface(vat).move(urns[cdp], dst, rad);
     }
 
     // Frob the cdp keeping the generated DAI or collateral freed in the cdp urn address.
@@ -158,7 +148,7 @@ contract SubCdpManager {
             ilks[cdp],
             urn,
             urn,
-            JoinManagerLike(joinManager).getOrCreateProxy(urn),
+            urn,
             dink,
             dart
         );

@@ -155,7 +155,7 @@ contract SubCdpManagerTest is DssDeployTestBase {
         weth.approve(address(charter), 1 ether);
         charter.join(address(adapter), manager.urns(cdp), 1 ether);
         manager.frob(cdp, 1 ether, 50 ether);
-        assertEq(vat.dai(charter.proxy(manager.urns(cdp))), 50 ether * RAY);
+        assertEq(vat.dai(manager.urns(cdp)), 50 ether * RAY);
         assertEq(vat.dai(address(this)), 0);
         manager.move(cdp, address(this), 50 ether * RAY);
         assertEq(vat.dai(manager.urns(cdp)), 0);
@@ -164,19 +164,6 @@ contract SubCdpManagerTest is DssDeployTestBase {
         vat.hope(address(daiJoin));
         daiJoin.exit(address(this), 50 ether);
         assertEq(dai.balanceOf(address(this)), 50 ether);
-    }
-
-    function testExit() public {
-        setUpManager();
-        uint256 cdp = manager.open("ETH", address(this));
-        charterEthUrn(cdp);
-        weth.mint(1 ether);
-        weth.approve(address(charter), 1 ether);
-        assertEq(weth.balanceOf(address(this)), 1 ether);
-        charter.join(address(adapter), manager.urns(cdp), 1 ether);
-        assertEq(weth.balanceOf(address(this)), 0 ether);
-        manager.exit(cdp, address(adapter), address(this), 1 ether);
-        assertEq(weth.balanceOf(address(this)), 1 ether);
     }
 
     function testFrobAllowed() public {
@@ -188,7 +175,7 @@ contract SubCdpManagerTest is DssDeployTestBase {
         charter.join(address(adapter), manager.urns(cdp), 1 ether);
         manager.cdpAllow(cdp, address(user), 1);
         user.doFrob(manager, cdp, 1 ether, 50 ether);
-        assertEq(vat.dai(charter.proxy(manager.urns(cdp))), 50 ether * RAY);
+        assertEq(vat.dai(manager.urns(cdp)), 50 ether * RAY);
     }
 
     function testFailFrobNotAllowed() public {
@@ -217,7 +204,7 @@ contract SubCdpManagerTest is DssDeployTestBase {
         assertEq(vat.gem("ETH", charter.proxy(manager.urns(cdp))), 0);
         assertEq(vat.gem("ETH", charter.proxy(address(this))), 1 ether);
         uint256 prevBalance = weth.balanceOf(address(this));
-        charter.exit(address(adapter), address(this), address(this), 1 ether);
+        charter.exit(address(adapter), address(this), 1 ether);
         assertEq(weth.balanceOf(address(this)), prevBalance + 1 ether);
     }
 
