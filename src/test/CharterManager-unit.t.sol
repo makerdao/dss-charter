@@ -392,7 +392,7 @@ contract CharterManagerTest is TestBase {
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
     }
 
-    function test_exit_other() public {
+    function test_exit_to_other() public {
         (Usr a, Usr b) = init_user();
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
 
@@ -400,36 +400,11 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 200 * 1e18);
         assertEq(gem.balanceOf(address(a)), 0);
 
-        a.hope(address(b));
-        b.flux(address(a), address(b), 200 * 1e18);
-        b.exit(address(a), 200 * 1e6);
+        assertEq(gem.balanceOf(address(b)), 200 * 1e6);
+        a.exit(address(b), 200 * 1e6);
         assertEq(a.gems(), 0);
         assertEq(b.gems(), 0);
-        assertEq(gem.balanceOf(address(a)), 200 * 1e6);
-    }
-
-    function testFail_exit_other() public {
-        (Usr a, Usr b) = init_user();
-        assertEq(gem.balanceOf(address(a)), 200 * 1e6);
-
-        a.join(200 * 1e6);
-        assertEq(a.gems(), 200 * 1e18);
-        assertEq(gem.balanceOf(address(a)), 0);
-
-        // b can not exit a's funds
-        b.exit(address(a), 200 * 1e6);
-    }
-
-    function testFail_flux_before_exit_other() public {
-        (Usr a, Usr b) = init_user();
-        assertEq(gem.balanceOf(address(a)), 200 * 1e6);
-
-        a.join(200 * 1e6);
-        assertEq(a.gems(), 200 * 1e18);
-        assertEq(gem.balanceOf(address(a)), 0);
-
-        // flux should fail since a does not hope b
-        b.flux(address(a), address(b), 200 * 1e18);
+        assertEq(gem.balanceOf(address(b)), 400 * 1e6);
     }
 
     function test_exit_maintains_peace() public {
@@ -974,7 +949,7 @@ contract CharterManagerTest is TestBase {
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
     }
 
-    function test_quit_other() public {
+    function test_quit_from_other() public {
         (Usr a, Usr b) = init_user();
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
@@ -997,7 +972,7 @@ contract CharterManagerTest is TestBase {
         assertEq(vat.gem(ilk, address(a)), 0);
     }
 
-    function testFail_quit_other() public {
+    function testFail_quit_from_other() public {
         (Usr a, Usr b) = init_user();
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
@@ -1011,6 +986,50 @@ contract CharterManagerTest is TestBase {
         assertEq(vat.gem(ilk, address(a)), 0);
         // b is not allowed to quit a
         b.quit(address(a), address(a));
+    }
+
+    function test_quit_to_other() public {
+        (Usr a, Usr b) = init_user();
+        a.join(100 * 1e6);
+        a.frob(100 * 1e18, 50 * 1e18);
+        vat.cage();
+        (uint256 ink, uint256 art) = vat.urns(ilk, a.proxy());
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        (ink, art) = vat.urns(ilk, address(a));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(a)), 0);
+        b.hope(address(a));
+        a.quit(address(a), address(b));
+        (ink, art) = vat.urns(ilk, a.proxy());
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        (ink, art) = vat.urns(ilk, b.proxy());
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        (ink, art) = vat.urns(ilk, address(b));
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        assertEq(vat.gem(ilk, address(a)), 0);
+        assertEq(vat.gem(ilk, address(b)), 0);
+    }
+
+    function testFail_quit_to_other() public {
+        (Usr a, Usr b) = init_user();
+        a.join(100 * 1e6);
+        a.frob(100 * 1e18, 50 * 1e18);
+        vat.cage();
+        (uint256 ink, uint256 art) = vat.urns(ilk, a.proxy());
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        (ink, art) = vat.urns(ilk, address(a));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(a)), 0);
+
+        // quit to an unauthorized dst should fail
+        a.quit(address(a), address(b));
     }
 
     // Make sure we can't call most functions on the adapter directly

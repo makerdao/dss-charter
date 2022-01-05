@@ -289,10 +289,12 @@ contract CharterManagerImp {
 
     function onVatFlux(address gemJoin, address from, address to, uint256 wad) external {}
 
-    function quit(bytes32 ilk, address u, address dst) external allowed(u) {
+    function quit(bytes32 ilk, address u, address dst) external allowed(u) allowed(dst) {
         require(VatLike(vat).live() == 0, "CharterManager/vat-still-live");
 
         address urp = proxy[u];
+        require(urp != address(0), "CharterManager/non-existing-urp");
+
         (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
         require(int256(ink) >= 0, "CharterManager/overflow");
         require(int256(art) >= 0, "CharterManager/overflow");
