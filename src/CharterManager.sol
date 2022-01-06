@@ -125,6 +125,9 @@ contract CharterManagerImp {
     mapping (bytes32 => mapping (address => uint256))  public peace; // min CR for permissioned vaults            [ray]
     mapping (bytes32 => mapping (address => uint256))  public uline; // debt ceiling for permissioned vaults      [rad]
 
+    // srcIlk => dstIlk => src => dst => is_rollable
+    mapping (bytes32 => mapping (bytes32 => mapping (address => mapping (address => uint256)))) public rollable;
+
     address public immutable vat;
     address public immutable vow;
     address public immutable spotter;
@@ -132,6 +135,7 @@ contract CharterManagerImp {
     // --- Events ---
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
     event File(bytes32 indexed ilk, address indexed usr, bytes32 indexed what, uint256 data);
+    event File(bytes32 indexed srcIlk, bytes32 indexed dstIlk, address indexed src, address dst, bytes32 what, uint256 data);
     event Hope(address indexed from, address indexed to);
     event Nope(address indexed from, address indexed to);
     event NewProxy(address indexed usr, address indexed urp);
@@ -150,6 +154,11 @@ contract CharterManagerImp {
         else if (what == "peace") peace[ilk][usr] = data;
         else revert("CharterManager/file-unrecognized-param");
         emit File(ilk, usr, what, data);
+    }
+    function file(bytes32 srcIlk, bytes32 dstIlk, address src, address dst, bytes32 what, uint256 data) external auth {
+        if (what == "rollable") rollable[srcIlk][dstIlk][src][dst] = data;
+        else revert("CharterManager/file-unrecognized-param");
+        emit File(srcIlk, dstIlk, src, dst, what, data);
     }
 
     // --- Math ---
@@ -170,6 +179,10 @@ contract CharterManagerImp {
     }
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, RAY) / y;
+    }
+    function _toInt(uint256 x) internal pure returns (int256 y) {
+        y = int256(x);
+        require(y >= 0);
     }
 
     // --- Auth ---
@@ -227,6 +240,28 @@ contract CharterManagerImp {
         require(urp != address(0), "CharterManager/non-existing-urp");
 
         VatLike(vat).move(urp, dst, rad);
+    }
+
+    function roll(bytes32 srcIlk, bytes32 dstIlk, address src, address dst, int256 srcDart) external allowed(src) allowed(dst) {
+        require(gate[srcIlk] == 1 && gate[dstIlk] == 1, "CharterManager/non-gated-ilks");
+        require(srcDart < 0, "CharterManager/not-repaying-src");
+        require(rollable[srcIlk][dstIlk][src][dst] == 1, "CharterManager/non-rollable");
+
+        (, uint256 srcRate,,,) = VatLike(vat).ilks(srcIlk);
+        (, uint256 dstRate, uint256 dstSpot,,) = VatLike(vat).ilks(dstIlk);
+
+        // Add a dart unit to avoid insufficiency due to precision loss
+        int256 dstDart = _toInt(_mul(srcRate, uint256(-srcDart)) / dstRate + 1);
+
+        address dstUrp = proxy[dst];
+        require(dstUrp != address(0), "CharterManager/non-existing-dst-urp");
+        VatLike(vat).frob(dstIlk, dstUrp, address(0), address(this), 0, dstDart);
+
+        address srcUrp = proxy[src];
+        require(srcUrp != address(0), "CharterManager/non-existing-src-urp");
+        VatLike(vat).frob(srcIlk, srcUrp, address(0), address(this), 0, srcDart);
+
+        _validate(dstIlk, dst, dstUrp, 0, dstDart, dstRate, dstSpot, 1);
     }
 
     function _draw(
