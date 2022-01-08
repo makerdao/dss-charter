@@ -242,16 +242,15 @@ contract CharterManagerImp {
         VatLike(vat).move(urp, dst, rad);
     }
 
-    function roll(bytes32 srcIlk, bytes32 dstIlk, address src, address dst, int256 srcDart) external allowed(src) allowed(dst) {
+    function roll(bytes32 srcIlk, bytes32 dstIlk, address src, address dst, uint256 srcDart) external allowed(src) allowed(dst) {
         require(gate[srcIlk] == 1 && gate[dstIlk] == 1, "CharterManager/non-gated-ilks");
-        require(srcDart < 0, "CharterManager/not-repaying-src");
         require(rollable[srcIlk][dstIlk][src][dst] == 1, "CharterManager/non-rollable");
 
         (, uint256 srcRate,,,) = VatLike(vat).ilks(srcIlk);
         (, uint256 dstRate, uint256 dstSpot,,) = VatLike(vat).ilks(dstIlk);
 
         // Add a dart unit to avoid insufficiency due to precision loss
-        int256 dstDart = _toInt(_mul(srcRate, uint256(-srcDart)) / dstRate + 1);
+        int256 dstDart = _toInt(_mul(srcRate, srcDart) / dstRate + 1);
 
         address dstUrp = proxy[dst];
         require(dstUrp != address(0), "CharterManager/non-existing-dst-urp");
@@ -259,7 +258,8 @@ contract CharterManagerImp {
 
         address srcUrp = proxy[src];
         require(srcUrp != address(0), "CharterManager/non-existing-src-urp");
-        VatLike(vat).frob(srcIlk, srcUrp, address(0), address(this), 0, srcDart);
+        int256 srcDart_ = -_toInt(srcDart); // Not inlined to avoid stack too deep
+        VatLike(vat).frob(srcIlk, srcUrp, address(0), address(this), 0, srcDart_);
 
         _validate(dstIlk, dst, dstUrp, 0, dstDart, dstRate, dstSpot, 1);
     }
