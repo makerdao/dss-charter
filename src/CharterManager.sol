@@ -222,6 +222,13 @@ contract CharterManagerImp {
         ManagedGemJoinLike(gemJoin).exit(urp, usr, amt);
     }
 
+    function move(address u, address dst, uint256 rad) external allowed(u) {
+        address urp = proxy[u];
+        require(urp != address(0), "CharterManager/non-existing-urp");
+
+        VatLike(vat).move(urp, dst, rad);
+    }
+
     function _draw(
         bytes32 ilk, address u, address urp, address w, int256 dink, int256 dart, uint256 rate, uint256 _gate
         ) internal {
@@ -257,8 +264,8 @@ contract CharterManagerImp {
         }
     }
 
-    function frob(bytes32 ilk, address u, address v, address w, int256 dink, int256 dart) external allowed(u) {
-        require(u == v && w == msg.sender, "CharterManager/not-matching");
+    function frob(bytes32 ilk, address u, address v, address w, int256 dink, int256 dart) external allowed(u) allowed(w) {
+        require(u == v, "CharterManager/not-matching");
         address urp = getOrCreateProxy(u);
         (, uint256 rate, uint256 spot,,) = VatLike(vat).ilks(ilk);
         uint256 _gate = gate[ilk];
@@ -282,10 +289,12 @@ contract CharterManagerImp {
 
     function onVatFlux(address gemJoin, address from, address to, uint256 wad) external {}
 
-    function quit(bytes32 ilk, address dst) external {
+    function quit(bytes32 ilk, address u, address dst) external allowed(u) allowed(dst) {
         require(VatLike(vat).live() == 0, "CharterManager/vat-still-live");
 
-        address urp = getOrCreateProxy(msg.sender);
+        address urp = proxy[u];
+        require(urp != address(0), "CharterManager/non-existing-urp");
+
         (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
         require(int256(ink) >= 0, "CharterManager/overflow");
         require(int256(art) >= 0, "CharterManager/overflow");

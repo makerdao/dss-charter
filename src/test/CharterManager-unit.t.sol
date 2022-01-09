@@ -61,6 +61,9 @@ contract Usr {
     function exit(uint256 wad) public {
         manager.exit(address(adapter), address(this), wad);
     }
+    function move(address gemJoin, address usr, uint256 amt) public {
+        manager.move(gemJoin, usr, amt);
+    }
     function proxy() public view returns (address) {
         return manager.proxy(address(this));
     }
@@ -95,10 +98,10 @@ contract Usr {
         VatLike(manager.vat()).flux(adapter.ilk(), src, dst, wad);
     }
     function quit() public {
-        manager.quit(adapter.ilk(), address(this));
+        manager.quit(adapter.ilk(), address(this), address(this));
     }
-    function quit(address dst) public {
-        manager.quit(adapter.ilk(), dst);
+    function quit(address u, address dst) public {
+        manager.quit(adapter.ilk(), u, dst);
     }
     function joinDirect(address gemJoin, uint256 wad) public {
         GemJoin5(gemJoin).join(address(this), wad);
@@ -303,17 +306,6 @@ contract CharterManagerTest is TestBase {
         assertEq(gem.balanceOf(address(b)), 200e6);
     }
 
-    function testFail_join_unauthorized() public {
-        (Usr a,) = init_user();
-        a.join(address(a) ,address(a) ,100 * 1e6);
-    }
-
-    function testFail_exit_unauthorized() public {
-        (Usr a,) = init_user();
-        a.join(10 * 1e6);
-        a.exit(address(a), address(a) ,10 * 1e6);
-    }
-
     function test_frob_ungate() public {
         init_ilk_ungate(0, 0);
         (Usr a,) = init_user();
@@ -386,6 +378,35 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 100 * 1e18);
     }
 
+    function test_exit() public {
+        (Usr a,) = init_user();
+        assertEq(gem.balanceOf(address(a)), 200 * 1e6);
+
+        a.join(200 * 1e6);
+        assertEq(a.gems(), 200 * 1e18);
+        assertEq(gem.balanceOf(address(a)), 0);
+
+        // check exit of unlocked gems does not affect the vault and does not prevent increasing debt
+        a.exit(200 * 1e6);
+        assertEq(a.gems(), 0);
+        assertEq(gem.balanceOf(address(a)), 200 * 1e6);
+    }
+
+    function test_exit_to_other() public {
+        (Usr a, Usr b) = init_user();
+        assertEq(gem.balanceOf(address(a)), 200 * 1e6);
+
+        a.join(200 * 1e6);
+        assertEq(a.gems(), 200 * 1e18);
+        assertEq(gem.balanceOf(address(a)), 0);
+
+        assertEq(gem.balanceOf(address(b)), 200 * 1e6);
+        a.exit(address(b), 200 * 1e6);
+        assertEq(a.gems(), 0);
+        assertEq(b.gems(), 0);
+        assertEq(gem.balanceOf(address(b)), 400 * 1e6);
+    }
+
     function test_exit_maintains_peace() public {
         init_ilk_ungate(0, 3 * RAY);
         (Usr a,) = init_user();
@@ -420,6 +441,48 @@ contract CharterManagerTest is TestBase {
         assertEq(art, 0);
         assertEq(a.dai(), 0);
         assertEq(a.gems(), 100 * 1e18);
+    }
+
+    function test_move() public {
+        (Usr a,) = init_user();
+        cheat_get_dai(address(this), 2 * 1e18);
+        dai.approve(address(daiJoin), 2 * 1e18);
+
+        manager.getOrCreateProxy(address(a));
+        daiJoin.join(a.proxy(), 2 * 1e18);
+        assertEq(vat.dai(a.proxy()), 2 * 1e45);
+
+        a.move(address(a), address(this), 2 * 1e45);
+        assertEq(vat.dai(a.proxy()), 0);
+        assertEq(vat.dai(address(this)), 2 * 1e45);
+    }
+
+    function test_move_other() public {
+        (Usr a, Usr b) = init_user();
+        cheat_get_dai(address(this), 2 * 1e18);
+        dai.approve(address(daiJoin), 2 * 1e18);
+
+        manager.getOrCreateProxy(address(a));
+        daiJoin.join(a.proxy(), 2 * 1e18);
+        assertEq(vat.dai(a.proxy()), 2 * 1e45);
+
+        a.hope(address(b));
+        b.move(address(a), address(this), 2 * 1e45);
+        assertEq(vat.dai(a.proxy()), 0);
+        assertEq(vat.dai(address(this)), 2 * 1e45);
+    }
+
+    function testFail_move_other() public {
+        (Usr a, Usr b) = init_user();
+        cheat_get_dai(address(this), 2 * 1e18);
+        dai.approve(address(daiJoin), 2 * 1e18);
+
+        manager.getOrCreateProxy(address(a));
+        daiJoin.join(a.proxy(), 2 * 1e18);
+        assertEq(vat.dai(a.proxy()), 2 * 1e45);
+
+        // b is not authorized to to move dai from a's proxy
+        b.move(address(a), address(this), 2 * 1e45);
     }
 
     function testFail_frob_ungate_below_Peace() public {
@@ -719,13 +782,8 @@ contract CharterManagerTest is TestBase {
         a.join(100 * 1e6);
         a.frob(address(a), address(this), address(a), 100 * 1e18, 50 * 1e18);
     }
-    function testFail_frob3() public {
-        (Usr a,) = init_user();
-        a.join(100 * 1e6);
-        a.frob(address(a), address(a), address(this), 100 * 1e18, 50 * 1e18);
-    }
 
-    function test_frob_other() public {
+    function test_frob_other_u() public {
         (Usr a, Usr b) = init_user();
         assertEq(a.gems(), 0);
         assertEq(b.gems(), 0);
@@ -750,18 +808,47 @@ contract CharterManagerTest is TestBase {
         assertEq(b.gems(), 100 * 1e18);
     }
 
-    function testFail_frob_other1() public {
+    function testFail_frob_other_u_1() public {
         (Usr a, Usr b) = init_user();
         a.join(address(b), 100 * 1e6);
         a.frob(address(b), address(b), address(a), 100 * 1e18, 50 * 1e18);
     }
 
-    function testFail_frob_other2() public {
+    function testFail_frob_other_u_2() public {
         (Usr a, Usr b) = init_user();
         a.join(address(b), 100 * 1e6);
         b.hope(address(a));
         b.nope(address(a));
         a.frob(address(b), address(b), address(a), 100 * 1e18, 50 * 1e18);
+    }
+
+    function test_frob_other_w() public {
+        init_ilk_ungate(0, 0);
+        (Usr a, Usr b) = init_user();
+        b.join(100 * 1e6);
+        b.hope(address(a));
+        a.frob(address(b), address(b), address(b), 100 * 1e18, 50 * 1e18);
+        (uint256 ink, uint256 art) = b.urn();
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        assertEq(b.dai(), 50 * 1e45);
+        assertEq(a.gems(), 0);
+        assertEq(b.gems(), 0);
+        a.frob(address(b), address(b), address(b), -100 * 1e18, -50 * 1e18);
+        (ink, art) = b.urn();
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(a.dai(), 0);
+        assertEq(b.dai(), 0);
+        assertEq(b.gems(), 100 * 1e18);
+    }
+
+    function testFail_frob_other_w() public {
+        init_ilk_ungate(0, 0);
+        (Usr a, Usr b) = init_user();
+        a.join(100 * 1e6);
+        // a can not frob to/from b without permission
+        a.frob(address(a), address(a), address(b), 100 * 1e18, 50 * 1e18);
     }
 
     function test_flux_to_other() public {
@@ -861,6 +948,90 @@ contract CharterManagerTest is TestBase {
         assertEq(vat.gem(ilk, a.proxy()), 0);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
     }
+
+    function test_quit_from_other() public {
+        (Usr a, Usr b) = init_user();
+        a.join(100 * 1e6);
+        a.frob(100 * 1e18, 50 * 1e18);
+        vat.cage();
+        (uint256 ink, uint256 art) = vat.urns(ilk, a.proxy());
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        (ink, art) = vat.urns(ilk, address(a));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(a)), 0);
+        a.hope(address(b));
+        b.quit(address(a), address(a));
+        (ink, art) = vat.urns(ilk, a.proxy());
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        (ink, art) = vat.urns(ilk, address(a));
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        assertEq(vat.gem(ilk, address(a)), 0);
+    }
+
+    function testFail_quit_from_other() public {
+        (Usr a, Usr b) = init_user();
+        a.join(100 * 1e6);
+        a.frob(100 * 1e18, 50 * 1e18);
+        vat.cage();
+        (uint256 ink, uint256 art) = vat.urns(ilk, a.proxy());
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        (ink, art) = vat.urns(ilk, address(a));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(a)), 0);
+        // b is not allowed to quit a
+        b.quit(address(a), address(a));
+    }
+
+    function test_quit_to_other() public {
+        (Usr a, Usr b) = init_user();
+        a.join(100 * 1e6);
+        a.frob(100 * 1e18, 50 * 1e18);
+        vat.cage();
+        (uint256 ink, uint256 art) = vat.urns(ilk, a.proxy());
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        (ink, art) = vat.urns(ilk, address(a));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(a)), 0);
+        b.hope(address(a));
+        a.quit(address(a), address(b));
+        (ink, art) = vat.urns(ilk, a.proxy());
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        (ink, art) = vat.urns(ilk, b.proxy());
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        (ink, art) = vat.urns(ilk, address(b));
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        assertEq(vat.gem(ilk, address(a)), 0);
+        assertEq(vat.gem(ilk, address(b)), 0);
+    }
+
+    function testFail_quit_to_other() public {
+        (Usr a, Usr b) = init_user();
+        a.join(100 * 1e6);
+        a.frob(100 * 1e18, 50 * 1e18);
+        vat.cage();
+        (uint256 ink, uint256 art) = vat.urns(ilk, a.proxy());
+        assertEq(ink, 100 * 1e18);
+        assertEq(art, 50 * 1e18);
+        (ink, art) = vat.urns(ilk, address(a));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(a)), 0);
+
+        // quit to an unauthorized dst should fail
+        a.quit(address(a), address(b));
+    }
+
     // Make sure we can't call most functions on the adapter directly
     function testFail_direct_join() public {
         adapter.join(address(this), 0);

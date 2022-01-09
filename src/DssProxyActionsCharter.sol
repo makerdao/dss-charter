@@ -32,7 +32,7 @@ interface CharterLike {
     function join(address, address, uint256) external;
     function exit(address, address, uint256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
-    function quit(bytes32 ilk, address dst) external;
+    function quit(bytes32, address, address) external;
     function gate(bytes32) external view returns (uint256);
     function Nib(bytes32) external view returns (uint256);
     function nib(bytes32, address) external view returns (uint256);
@@ -257,7 +257,7 @@ contract DssProxyActionsCharter is Common {
         bytes32 ilk,
         address dst
     ) external {
-        CharterLike(charter).quit(ilk, dst);
+        CharterLike(charter).quit(ilk, address(this), dst);
     }
 
     function lockETH(address ethJoin) external payable {
@@ -563,7 +563,7 @@ contract DssProxyActionsEndCharter is Common {
         // Approves the charter to transfer the position to proxy's address in the vat
         VatLike(vat).hope(charter);
         // Transfers position from CDP to the proxy address
-        CharterLike(charter).quit(ilk, address(this));
+        CharterLike(charter).quit(ilk, address(this), address(this));
         // Denies charter to access to proxy's position in the vat after execution
         VatLike(vat).nope(charter);
         // Frees the position and recovers the collateral in the vat registry
