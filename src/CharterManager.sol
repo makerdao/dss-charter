@@ -278,12 +278,14 @@ contract CharterManagerImp {
         _validate(ilk, u, urp, dink, dart, rate, spot, _gate);
     }
 
-    function flux(bytes32 ilk, address src, address dst, uint256 wad) external allowed(src) {
+    function flux(address gemJoin, address src, address dst, uint256 wad) external allowed(src) {
         address surp = getOrCreateProxy(src);
         address durp = getOrCreateProxy(dst);
 
-        VatLike(vat).flux(ilk, surp, durp, wad);
+        VatLike(vat).flux(ManagedGemJoinLike(gemJoin).ilk(), surp, durp, wad);
     }
+
+    function flee(address gemJoin) external {}
 
     function onLiquidation(address gemJoin, address usr, uint256 wad) external {}
 

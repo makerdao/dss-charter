@@ -92,7 +92,7 @@ contract Usr {
         VatLike(manager.vat()).frob(i, u, v, w, dink, dart);
     }
     function flux(address src, address dst, uint256 wad) public {
-        manager.flux(ilk, src, dst, wad);
+        manager.flux(address(adapter), src, dst, wad);
     }
     function fluxDirect(address src, address dst, uint256 wad) public {
         VatLike(manager.vat()).flux(adapter.ilk(), src, dst, wad);
