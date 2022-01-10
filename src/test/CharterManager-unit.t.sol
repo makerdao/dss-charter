@@ -250,22 +250,6 @@ contract CharterManagerTest is TestBase {
         manager.file(ilk_, user, "uline", uline);
     }
 
-    function init_user() internal returns (Usr a, Usr b) {
-        return init_user(200 * 1e6);
-    }
-    function init_user(uint256 cash) internal returns (Usr a, Usr b) {
-        a = new Usr(ilk, adapter, manager);
-        b = new Usr(ilk, adapter, manager);
-
-        gem.transfer(address(a), cash);
-        gem.transfer(address(b), cash);
-
-        a.approve(address(gem), address(manager));
-        b.approve(address(gem), address(manager));
-
-        a.hope(address(vat), address(manager));
-        b.hope(address(vat), address(manager));
-    }
     function init_user(bytes32 ilk_, ManagedGemJoin adapter_, uint256 cash) internal returns (Usr a, Usr b) {
         a = new Usr(ilk_, adapter_, manager);
         b = new Usr(ilk_, adapter_, manager);
@@ -279,6 +263,7 @@ contract CharterManagerTest is TestBase {
         a.hope(address(vat), address(manager));
         b.hope(address(vat), address(manager));
     }
+
     function test_make_proxy() public {
         assertEq(manager.proxy(address(this)), address(0));
         manager.join(address(adapter), address(this), 0);
@@ -286,7 +271,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_hope_nope() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         assertEq(manager.can(address(b), address(a)), 0);
         b.hope(address(a));
         assertEq(manager.can(address(b), address(a)), 1);
@@ -295,7 +280,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_join_exit_self() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(10 * 1e6);
         assertEq(gem.balanceOf(address(a)), 190 * 1e6);
         assertEq(gem.balanceOf(address(adapter)), 10 * 1e6);
@@ -307,7 +292,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_join_other1() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         a.join(10 * 1e6);
         assertEq(gem.balanceOf(address(a)), 190 * 1e6);
         assertEq(gem.balanceOf(address(adapter)), 10 * 1e6);
@@ -319,7 +304,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_join_other2() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
 
         assertEq(gem.balanceOf(address(a)), 200e6);
         assertEq(gem.balanceOf(address(b)), 200e6);
@@ -339,7 +324,7 @@ contract CharterManagerTest is TestBase {
 
     function test_frob_ungate() public {
         init_ilk_ungate(ilk, 0, 0);
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         (uint256 ink, uint256 art) = a.urn();
@@ -357,7 +342,7 @@ contract CharterManagerTest is TestBase {
 
     function test_frob_ungate_Nib() public {
         init_ilk_ungate(ilk, NIB_ONE_PCT, 0);
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         (uint256 ink, uint256 art) = a.urn();
@@ -392,7 +377,7 @@ contract CharterManagerTest is TestBase {
 
     function test_frob_ungate_above_Peace() public {
         init_ilk_ungate(ilk, 0, 3 * RAY);
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
         a.frob(100 * 1e18, 50 * 1e18);
@@ -410,7 +395,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_roll_to_same_ilk() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 200 * 1e45);
         init_ilk_gate(ilk, address(b), 0, 0, 200 * 1e45);
         manager.file(ilk, ilk, address(a), address(b), "rollable", 1);
@@ -433,7 +418,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_roll_to_other_ilk() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 200 * 1e45);
 
         (Usr b,) = init_user(ilk2, adapter2, 200 * 1e6);
@@ -464,7 +449,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_roll_to_other() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 200 * 1e45);
 
         (Usr b,) = init_user(ilk2, adapter2, 200 * 1e6);
@@ -487,7 +472,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_roll_from_other() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 200 * 1e45);
 
         (Usr b,) = init_user(ilk2, adapter2, 200 * 1e6);
@@ -518,7 +503,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_roll_from_other() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 200 * 1e45);
 
         (Usr b,) = init_user(ilk2, adapter2, 200 * 1e6);
@@ -537,7 +522,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_roll_from_non_gated() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_ungate(ilk, 0, 0);
 
         (Usr b,) = init_user(ilk2, adapter2, 200 * 1e6);
@@ -556,7 +541,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_roll_to_non_gated() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 200 * 1e45);
 
         (Usr b,) = init_user(ilk2, adapter2, 200 * 1e6);
@@ -575,7 +560,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_non_rollable() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 200 * 1e45);
 
         (Usr b,) = init_user(ilk2, adapter2, 200 * 1e6);
@@ -593,7 +578,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_roll_exceed_uline() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 45 * 1e45);
         init_ilk_gate(ilk, address(b), 0, 0, 45 * 1e45);
         manager.file(ilk, ilk, address(a), address(b), "rollable", 1);
@@ -610,7 +595,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_roll_to_below_peace() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 100 * 1e45);
         init_ilk_gate(ilk, address(b), 0, 3 * RAY, 100 * 1e45);
         manager.file(ilk, ilk, address(a), address(b), "rollable", 1);
@@ -627,7 +612,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_exit() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
 
         a.join(200 * 1e6);
@@ -641,7 +626,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_exit_to_other() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
 
         a.join(200 * 1e6);
@@ -657,7 +642,7 @@ contract CharterManagerTest is TestBase {
 
     function test_exit_maintains_peace() public {
         init_ilk_ungate(ilk, 0, 3 * RAY);
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(200 * 1e6);
         assertEq(a.gems(), 200 * 1e18);
         // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
@@ -692,7 +677,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_move() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         cheat_get_dai(address(this), 2 * 1e18);
         dai.approve(address(daiJoin), 2 * 1e18);
 
@@ -706,7 +691,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_move_other() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         cheat_get_dai(address(this), 2 * 1e18);
         dai.approve(address(daiJoin), 2 * 1e18);
 
@@ -721,7 +706,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_move_other() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         cheat_get_dai(address(this), 2 * 1e18);
         dai.approve(address(daiJoin), 2 * 1e18);
 
@@ -735,7 +720,7 @@ contract CharterManagerTest is TestBase {
 
     function testFail_frob_ungate_below_Peace() public {
         init_ilk_ungate(ilk, 0, 3 * RAY);
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
         a.frob(100 * 1e18, 51 * 1e18);
@@ -743,7 +728,7 @@ contract CharterManagerTest is TestBase {
 
     function testFail_frob_ungate_withdraw_below_Peace() public {
         init_ilk_ungate(ilk, 0, 3 * RAY);
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         // (mat = 1.5, spot = 1) => price = 1.5, 100 col is worth 150 dai => can draw up to 50 dai.
         a.frob(100 * 1e18, 50 * 1e18);
@@ -758,7 +743,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_frob_gate() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 50 * 1e45);
 
         a.join(100 * 1e6);
@@ -778,8 +763,8 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_migration() public {
-        (Usr old,) = init_user();
-        (Usr a,) = init_user();
+        (Usr old,) = init_user(ilk, adapter, 200 * 1e6);
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
 
         // setup old (different) ilk with the same gem to migrate out from
         bytes32 oldIlk = "TOKEN-C";
@@ -840,7 +825,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_frob_gate_nib() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 2 * NIB_ONE_PCT, 0, 50 * 1e45);
 
         a.join(100 * 1e6);
@@ -876,7 +861,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_frob_gate_above_peace() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 2 * RAY, 100 * 1e45);
 
         a.join(100 * 1e6);
@@ -897,7 +882,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_frob_gate_below_peace() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 2 * RAY, 100 * 1e45);
 
         a.join(100 * 1e6);
@@ -906,7 +891,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_frob_gate_withdraw_below_peace() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 2 * RAY, 100 * 1e45);
 
         a.join(100 * 1e6);
@@ -923,7 +908,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_frob_undelegated_manager() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 50 * 1e45);
         a.nope(address(vat), address(manager));
 
@@ -935,7 +920,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_frob_gate_uline_exceeded() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 50 * 1e45);
 
         a.join(100 * 1e6);
@@ -943,7 +928,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_frob_gate_other() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 50 * 1e45);
 
         b.join(100 * 1e6);
@@ -952,7 +937,7 @@ contract CharterManagerTest is TestBase {
 
     function test_drip_withdraw() public {
         init_ilk_ungate(ilk, 10 * NIB_ONE_PCT, 0);
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
 
         a.join(20 * 1e6);
         a.frob(20 * 1e18, 20 * 1e18);
@@ -989,7 +974,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_debt_ceiling_removal() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 50 * 1e45);
 
         a.join(20 * 1e6);
@@ -1021,18 +1006,18 @@ contract CharterManagerTest is TestBase {
 
     // Non-msg.sender frobs should be disallowed for now
     function testFail_frob1() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         a.frob(ilk, address(this), address(a), address(a), 100 * 1e18, 50 * 1e18);
     }
     function testFail_frob2() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         a.frob(ilk, address(a), address(this), address(a), 100 * 1e18, 50 * 1e18);
     }
 
     function test_frob_other_u() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         assertEq(a.gems(), 0);
         assertEq(b.gems(), 0);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
@@ -1057,13 +1042,13 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_frob_other_u_1() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         a.join(address(b), 100 * 1e6);
         a.frob(ilk, address(b), address(b), address(a), 100 * 1e18, 50 * 1e18);
     }
 
     function testFail_frob_other_u_2() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         a.join(address(b), 100 * 1e6);
         b.hope(address(a));
         b.nope(address(a));
@@ -1072,7 +1057,7 @@ contract CharterManagerTest is TestBase {
 
     function test_frob_other_w() public {
         init_ilk_ungate(ilk, 0, 0);
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         b.join(100 * 1e6);
         b.hope(address(a));
         a.frob(ilk, address(b), address(b), address(b), 100 * 1e18, 50 * 1e18);
@@ -1093,14 +1078,14 @@ contract CharterManagerTest is TestBase {
 
     function testFail_frob_other_w() public {
         init_ilk_ungate(ilk, 0, 0);
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         // a can not frob to/from b without permission
         a.frob(ilk, address(a), address(a), address(b), 100 * 1e18, 50 * 1e18);
     }
 
     function test_flux_to_other() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         assertEq(a.gems(), 100 * 1e18);
         a.flux(address(a), address(b), 100 * 1e18);
@@ -1111,7 +1096,7 @@ contract CharterManagerTest is TestBase {
     }
     function test_flux_yourself() public {
         // Flux to yourself should be a no-op
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         assertEq(a.gems(), 100 * 1e18);
         a.flux(address(a), address(a), 100 * 1e18);
@@ -1122,7 +1107,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_flux_from_other() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         assertEq(a.gems(), 100 * 1e18);
         a.hope(address(b));
@@ -1135,13 +1120,13 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_flux_from_other1() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         b.flux(address(a), address(b), 100 * 1e18);
     }
 
     function testFail_flux_from_other2() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         a.hope(address(b));
         a.nope(address(b));
@@ -1149,13 +1134,13 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_quit() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         a.quit();       // Attempt to unbox the urn (should fail when vat is live)
     }
     function test_quit() public {
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         vat.cage();
@@ -1198,7 +1183,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_quit_from_other() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         vat.cage();
@@ -1221,7 +1206,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_quit_from_other() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         vat.cage();
@@ -1237,7 +1222,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function test_quit_to_other() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         vat.cage();
@@ -1264,7 +1249,7 @@ contract CharterManagerTest is TestBase {
     }
 
     function testFail_quit_to_other() public {
-        (Usr a, Usr b) = init_user();
+        (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
         vat.cage();
@@ -1290,7 +1275,7 @@ contract CharterManagerTest is TestBase {
 
     function test_implementation_upgrade() public {
 
-        (Usr a,) = init_user();
+        (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         a.join(10 * 1e6);
         assertEq(gem.balanceOf(address(a)), 190 * 1e6);
         assertEq(gem.balanceOf(address(adapter)), 10 * 1e6);
