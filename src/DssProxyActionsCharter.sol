@@ -31,7 +31,7 @@ interface CharterLike {
     function getOrCreateProxy(address) external returns (address);
     function join(address, address, uint256) external;
     function exit(address, address, uint256) external;
-    function frob(bytes32, address, address, address, int256, int256) external;
+    function frob(address, address, address, address, int256, int256) external;
     function quit(bytes32 ilk, address dst) external;
     function gate(bytes32) external view returns (uint256);
     function Nib(bytes32) external view returns (uint256);
@@ -206,11 +206,11 @@ contract DssProxyActionsCharter is Common {
     }
 
     function _frob(
-        bytes32 ilk,
+        address gemJoin,
         int256 dink,
         int256 dart
     ) internal {
-        CharterLike(charter).frob(ilk, address(this), address(this), address(this), dink, dart);
+        CharterLike(charter).frob(gemJoin, address(this), address(this), address(this), dink, dart);
     }
 
     function _ethJoin_join(address ethJoin) internal {
@@ -264,7 +264,7 @@ contract DssProxyActionsCharter is Common {
         // Receives ETH amount, converts it to WETH and joins it into the vat
         _ethJoin_join(ethJoin);
         // Locks WETH amount into the CDP
-        _frob(GemJoinLike(ethJoin).ilk(), _toInt256(msg.value), 0);
+        _frob(ethJoin, _toInt256(msg.value), 0);
     }
 
     function lockGem(
@@ -274,7 +274,7 @@ contract DssProxyActionsCharter is Common {
         // Takes token amount from user's wallet and joins into the vat
         _gemJoin_join(gemJoin, amt);
         // Locks token amount into the CDP
-        _frob(GemJoinLike(gemJoin).ilk(), _toInt256(_convertTo18(gemJoin, amt)), 0);
+        _frob(gemJoin, _toInt256(_convertTo18(gemJoin, amt)), 0);
     }
 
     function freeETH(
@@ -282,7 +282,7 @@ contract DssProxyActionsCharter is Common {
         uint256 wad
     ) external {
         // Unlocks WETH amount from the CDP
-        _frob(GemJoinLike(ethJoin).ilk(), -_toInt256(wad), 0);
+        _frob(ethJoin, -_toInt256(wad), 0);
         // Exits WETH amount to proxy address as a token
         CharterLike(charter).exit(ethJoin, address(this), wad);
         // Converts WETH to ETH
@@ -296,7 +296,7 @@ contract DssProxyActionsCharter is Common {
         uint256 amt
     ) external {
         // Unlocks token amount from the CDP
-        _frob(GemJoinLike(gemJoin).ilk(), -_toInt256(_convertTo18(gemJoin, amt)), 0);
+        _frob(gemJoin, -_toInt256(_convertTo18(gemJoin, amt)), 0);
         // Exits token amount to the user's wallet as a token
         CharterLike(charter).exit(gemJoin, msg.sender, amt);
     }
@@ -322,13 +322,13 @@ contract DssProxyActionsCharter is Common {
     }
 
     function draw(
-        bytes32 ilk,
+        address gemJoin,
         address jug,
         address daiJoin,
         uint256 wad
     ) external {
         // Generates debt in the CDP
-        _frob(ilk, 0, _getDrawDart(jug, ilk, wad));
+        _frob(gemJoin, 0, _getDrawDart(jug, GemJoinLike(gemJoin).ilk(), wad));
         // Allows adapter to access to proxy's DAI balance in the vat
         if (VatLike(vat).can(address(this), address(daiJoin)) == 0) {
             VatLike(vat).hope(daiJoin);
@@ -338,7 +338,7 @@ contract DssProxyActionsCharter is Common {
     }
 
     function wipe(
-        bytes32 ilk,
+        address gemJoin,
         address daiJoin,
         uint256 wad
     ) external {
@@ -348,12 +348,12 @@ contract DssProxyActionsCharter is Common {
         VatLike(vat).hope(charter);
         // Paybacks debt to the CDP
         _frob(
-            ilk,
+            gemJoin,
             0,
             _getWipeDart(
                 VatLike(vat).dai(address(this)),
                 CharterLike(charter).getOrCreateProxy(address(this)),
-                ilk
+                GemJoinLike(gemJoin).ilk()
             )
         );
         // Denies charter to access to proxy's DAI balance in the vat after execution
@@ -361,10 +361,11 @@ contract DssProxyActionsCharter is Common {
     }
 
     function wipeAll(
-        bytes32 ilk,
+        address gemJoin,
         address daiJoin
     ) external {
         address urp = CharterLike(charter).getOrCreateProxy(address(this));
+        bytes32 ilk = GemJoinLike(gemJoin).ilk();
         (, uint256 art) = VatLike(vat).urns(ilk, urp);
 
         // Joins DAI amount into the vat
@@ -372,7 +373,7 @@ contract DssProxyActionsCharter is Common {
         // Allows charter to access to proxy's DAI balance in the vat
         VatLike(vat).hope(charter);
         // Paybacks debt to the CDP
-        _frob(ilk, 0, -_toInt256(art));
+        _frob(gemJoin, 0, -_toInt256(art));
         // Denies charter to access to proxy's DAI balance in the vat after execution
         VatLike(vat).nope(charter);
     }
@@ -383,17 +384,15 @@ contract DssProxyActionsCharter is Common {
         address daiJoin,
         uint256 wadD
     ) external payable {
-        bytes32 ilk = GemJoinLike(ethJoin).ilk();
-
         // Receives ETH amount, converts it to WETH and joins it into the vat
         _ethJoin_join(ethJoin);
         // Locks WETH amount into the CDP and generates debt
         _frob(
-            ilk,
+            ethJoin,
             _toInt256(msg.value),
             _getDrawDart(
                 jug,
-                ilk,
+                GemJoinLike(ethJoin).ilk(),
                 wadD
             )
         );
@@ -412,17 +411,15 @@ contract DssProxyActionsCharter is Common {
         uint256 amtC,
         uint256 wadD
     ) external {
-        bytes32 ilk = GemJoinLike(gemJoin).ilk();
-
         // Takes token amount from user's wallet and joins into the vat
         _gemJoin_join(gemJoin, amtC);
         // Locks token amount into the CDP and generates debt
         _frob(
-            ilk,
+            gemJoin,
             _toInt256(_convertTo18(gemJoin, amtC)),
             _getDrawDart(
                 jug,
-                ilk,
+                GemJoinLike(gemJoin).ilk(),
                 wadD
             )
         );
@@ -440,20 +437,18 @@ contract DssProxyActionsCharter is Common {
         uint256 wadC,
         uint256 wadD
     ) external {
-        bytes32 ilk = GemJoinLike(ethJoin).ilk();
-
         // Joins DAI amount into the vat
         daiJoin_join(daiJoin, wadD);
         // Allows charter to access to proxy's DAI balance in the vat
         VatLike(vat).hope(charter);
         // Paybacks debt to the CDP and unlocks WETH amount from it
         _frob(
-            ilk,
+            ethJoin,
             -_toInt256(wadC),
             _getWipeDart(
                 VatLike(vat).dai(address(this)),
                 CharterLike(charter).getOrCreateProxy(address(this)),
-                ilk
+                GemJoinLike(ethJoin).ilk()
             )
         );
         // Denies charter to access to proxy's DAI balance in the vat after execution
@@ -480,7 +475,7 @@ contract DssProxyActionsCharter is Common {
         // Allows charter to access to proxy's DAI balance in the vat
         VatLike(vat).hope(charter);
         // Paybacks debt to the CDP and unlocks WETH amount from it
-        _frob(ilk, -_toInt256(wadC), -_toInt256(art));
+        _frob(ethJoin, -_toInt256(wadC), -_toInt256(art));
         // Denies charter to access to proxy's DAI balance in the vat after execution
         VatLike(vat).nope(charter);
         // Exits WETH amount to proxy address as a token
@@ -497,20 +492,18 @@ contract DssProxyActionsCharter is Common {
         uint256 amtC,
         uint256 wadD
     ) external {
-        bytes32 ilk = GemJoinLike(gemJoin).ilk();
-
         // Joins DAI amount into the vat
         daiJoin_join(daiJoin, wadD);
         // Allows charter to access to proxy's DAI balance in the vat
         VatLike(vat).hope(charter);
         // Paybacks debt to the CDP and unlocks token amount from it
         _frob(
-            ilk,
+            gemJoin,
             -_toInt256(_convertTo18(gemJoin, amtC)),
             _getWipeDart(
                 VatLike(vat).dai(address(this)),
                 CharterLike(charter).getOrCreateProxy(address(this)),
-                ilk
+                GemJoinLike(gemJoin).ilk()
             )
         );
         // Denies charter to access to proxy's DAI balance in the vat after execution
@@ -533,7 +526,7 @@ contract DssProxyActionsCharter is Common {
         // Allows charter to access to proxy's DAI balance in the vat
         VatLike(vat).hope(charter);
         // Paybacks debt to the CDP and unlocks token amount from it
-        _frob(ilk, -_toInt256(_convertTo18(gemJoin, amtC)), -_toInt256(art));
+        _frob(gemJoin, -_toInt256(_convertTo18(gemJoin, amtC)), -_toInt256(art));
         // Denies charter to access to proxy's DAI balance in the vat after execution
         VatLike(vat).nope(charter);
         // Exits token amount to the user's wallet as a token
