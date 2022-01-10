@@ -8,7 +8,7 @@ The manager wraps the Vat and the ManagedGemJoin adapter. Similarly to the CropJ
 There is support for an unpermissioned mode, in which anyone can create a vault and draw debt. The new debt is applicable to an origination fee (`Nib`).
 In the alternative permissioned mode, each vault owner is chartered a debt ceiling (`uline`) and specific origination fee (`nib`).
 
-When accuring debt (during `frob`) the manager contract validates the user's ceiling (if exists) and draws a portion of the created debt as system fee.
+When accruing debt (during `frob`) the manager contract validates the user's ceiling (if exists) and draws a portion of the created debt as system fee.
 A minimal collateralization ratio (`Peace` / `peace`) is enforced upon drawing debt or withdrawing collateral.
 
 As in CropJoin, liquidations can only be done by users who created a UrnProxy through the manager.
