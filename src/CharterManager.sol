@@ -285,7 +285,9 @@ contract CharterManagerImp {
         VatLike(vat).flux(ManagedGemJoinLike(gemJoin).ilk(), surp, durp, wad);
     }
 
-    function flee(address gemJoin) external {}
+    function flee(address gemJoin) external {
+        revert("CharterManager/unsupported");
+    }
 
     function onLiquidation(address gemJoin, address usr, uint256 wad) external {}
 
