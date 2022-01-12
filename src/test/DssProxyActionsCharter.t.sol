@@ -3,7 +3,7 @@ pragma solidity ^0.6.12;
 import "ds-test/test.sol";
 
 import "../DssProxyActionsCharter.sol";
-import {CharterManager, CharterManagerImp} from "../CharterManager.sol";
+import {Charter, CharterImp} from "../Charter.sol";
 import {ManagedGemJoin} from "lib/dss-gem-joins/src/join-managed.sol";
 
 import {DssDeployTestBase} from "dss-deploy/DssDeploy.t.base.sol";
@@ -129,7 +129,7 @@ contract ProxyCalls {
 }
 
 contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
-    CharterManagerImp charter;
+    CharterImp charter;
     address charterProxy;
 
     ManagedGemJoin ethManagedJoin;
@@ -166,10 +166,10 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         (,,uint256 spot,,) = vat.ilks("WBTC");
         assertEq(spot, 50 * RAY * RAY / 1500000000 ether);
 
-        // Deploy CharterManager
-        CharterManager base = new CharterManager();
-        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow), address(spotter))));
-        charter = CharterManagerImp(address(base));
+        // Deploy Charter
+        Charter base = new Charter();
+        base.setImplementation(address(new CharterImp(address(vat), address(vow), address(spotter))));
+        charter = CharterImp(address(base));
 
         ethManagedJoin.rely(address(charter));
         ethManagedJoin.deny(address(this));    // Only access should be through charter

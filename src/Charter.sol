@@ -59,7 +59,7 @@ contract UrnProxy {
     }
 }
 
-contract CharterManager {
+contract Charter {
     address public implementation;
     mapping (address => uint256) public wards;
 
@@ -83,7 +83,7 @@ contract CharterManager {
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "CharterManager/non-authed");
+        require(wards[msg.sender] == 1, "Charter/non-authed");
         _;
     }
 
@@ -110,7 +110,7 @@ contract CharterManager {
     }
 }
 
-contract CharterManagerImp {
+contract CharterImp {
     // --- Proxy Storage ---
     bytes32 slot0; // avoid collision with proxy's implementation field
     mapping (address => uint256) public wards;
@@ -145,19 +145,19 @@ contract CharterManagerImp {
         if (what == "gate") gate[ilk] = data;
         else if (what == "Nib") Nib[ilk] = data;
         else if (what == "Peace") Peace[ilk] = data;
-        else revert("CharterManager/file-unrecognized-param");
+        else revert("Charter/file-unrecognized-param");
         emit File(ilk, what, data);
     }
     function file(bytes32 ilk, address usr, bytes32 what, uint256 data) external auth {
         if (what == "uline") uline[ilk][usr] = data;
         else if (what == "nib") nib[ilk][usr] = data;
         else if (what == "peace") peace[ilk][usr] = data;
-        else revert("CharterManager/file-unrecognized-param");
+        else revert("Charter/file-unrecognized-param");
         emit File(ilk, usr, what, data);
     }
     function file(bytes32 srcIlk, bytes32 dstIlk, address src, address dst, bytes32 what, uint256 data) external auth {
         if (what == "rollable") rollable[srcIlk][dstIlk][src][dst] = data;
-        else revert("CharterManager/file-unrecognized-param");
+        else revert("Charter/file-unrecognized-param");
         emit File(srcIlk, dstIlk, src, dst, what, data);
     }
 
@@ -187,7 +187,7 @@ contract CharterManagerImp {
 
     // --- Auth ---
     modifier auth {
-        require(wards[msg.sender] == 1, "CharterManager/non-authed");
+        require(wards[msg.sender] == 1, "Charter/non-authed");
         _;
     }
 
@@ -198,7 +198,7 @@ contract CharterManagerImp {
     }
 
     modifier allowed(address usr) {
-        require(msg.sender == usr || can[usr][msg.sender] == 1, "CharterManager/not-allowed");
+        require(msg.sender == usr || can[usr][msg.sender] == 1, "Charter/not-allowed");
         _;
     }
     function hope(address usr) external {
@@ -219,7 +219,7 @@ contract CharterManagerImp {
     }
 
     function join(address gemJoin, address usr, uint256 amt) external {
-        require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
+        require(VatLike(vat).wards(gemJoin) == 1, "Charter/gem-join-not-authorized");
 
         GemLike gem = ManagedGemJoinLike(gemJoin).gem();
         gem.transferFrom(msg.sender, address(this), amt);
@@ -228,23 +228,23 @@ contract CharterManagerImp {
     }
 
     function exit(address gemJoin, address usr, uint256 amt) external {
-        require(VatLike(vat).wards(gemJoin) == 1, "CharterManager/gem-join-not-authorized");
+        require(VatLike(vat).wards(gemJoin) == 1, "Charter/gem-join-not-authorized");
 
         address urp = proxy[msg.sender];
-        require(urp != address(0), "CharterManager/non-existing-urp");
+        require(urp != address(0), "Charter/non-existing-urp");
         ManagedGemJoinLike(gemJoin).exit(urp, usr, amt);
     }
 
     function move(address u, address dst, uint256 rad) external allowed(u) {
         address urp = proxy[u];
-        require(urp != address(0), "CharterManager/non-existing-urp");
+        require(urp != address(0), "Charter/non-existing-urp");
 
         VatLike(vat).move(urp, dst, rad);
     }
 
     function roll(bytes32 srcIlk, bytes32 dstIlk, address src, address dst, uint256 srcDart) external allowed(src) allowed(dst) {
-        require(gate[srcIlk] == 1 && gate[dstIlk] == 1, "CharterManager/non-gated-ilks");
-        require(rollable[srcIlk][dstIlk][src][dst] == 1, "CharterManager/non-rollable");
+        require(gate[srcIlk] == 1 && gate[dstIlk] == 1, "Charter/non-gated-ilks");
+        require(rollable[srcIlk][dstIlk][src][dst] == 1, "Charter/non-rollable");
 
         (, uint256 srcRate,,,) = VatLike(vat).ilks(srcIlk);
         (, uint256 dstRate, uint256 dstSpot,,) = VatLike(vat).ilks(dstIlk);
@@ -253,11 +253,11 @@ contract CharterManagerImp {
         int256 dstDart = _toInt(_mul(srcRate, srcDart) / dstRate + 1);
 
         address dstUrp = proxy[dst];
-        require(dstUrp != address(0), "CharterManager/non-existing-dst-urp");
+        require(dstUrp != address(0), "Charter/non-existing-dst-urp");
         VatLike(vat).frob(dstIlk, dstUrp, address(0), address(this), 0, dstDart);
 
         address srcUrp = proxy[src];
-        require(srcUrp != address(0), "CharterManager/non-existing-src-urp");
+        require(srcUrp != address(0), "Charter/non-existing-src-urp");
         int256 srcDart_ = -_toInt(srcDart); // Not inlined to avoid stack too deep
         VatLike(vat).frob(srcIlk, srcUrp, address(0), address(this), 0, srcDart_);
 
@@ -286,7 +286,7 @@ contract CharterManagerImp {
             uint256 tab = _mul(art, rate); // rad
 
             if (dart > 0 && _gate == 1) {
-                require(tab <= uline[ilk][u], "CharterManager/user-line-exceeded");
+                require(tab <= uline[ilk][u], "Charter/user-line-exceeded");
             }
 
             uint256 _peace = (_gate == 1) ? peace[ilk][u] : Peace[ilk];
@@ -294,13 +294,13 @@ contract CharterManagerImp {
                 (, uint256 mat) = SpotterLike(spotter).ilks(ilk);
                 // reconstruct price, avoid un-applying par so it's accounted for when comparing to tab
                 uint256 peaceSpot = _rdiv(_rmul(spot, mat), _peace); // ray
-                require(tab <= _mul(ink, peaceSpot), "CharterManager/below-peace-ratio");
+                require(tab <= _mul(ink, peaceSpot), "Charter/below-peace-ratio");
             }
         }
     }
 
     function frob(bytes32 ilk, address u, address v, address w, int256 dink, int256 dart) external allowed(u) allowed(w) {
-        require(u == v, "CharterManager/not-matching");
+        require(u == v, "Charter/not-matching");
         address urp = getOrCreateProxy(u);
         (, uint256 rate, uint256 spot,,) = VatLike(vat).ilks(ilk);
         uint256 _gate = gate[ilk];
@@ -321,7 +321,7 @@ contract CharterManagerImp {
     }
 
     function flee(address gemJoin) external {
-        revert("CharterManager/unsupported");
+        revert("Charter/unsupported");
     }
 
     function onLiquidation(address gemJoin, address usr, uint256 wad) external {}
@@ -329,14 +329,14 @@ contract CharterManagerImp {
     function onVatFlux(address gemJoin, address from, address to, uint256 wad) external {}
 
     function quit(bytes32 ilk, address u, address dst) external allowed(u) allowed(dst) {
-        require(VatLike(vat).live() == 0, "CharterManager/vat-still-live");
+        require(VatLike(vat).live() == 0, "Charter/vat-still-live");
 
         address urp = proxy[u];
-        require(urp != address(0), "CharterManager/non-existing-urp");
+        require(urp != address(0), "Charter/non-existing-urp");
 
         (uint256 ink, uint256 art) = VatLike(vat).urns(ilk, urp);
-        require(int256(ink) >= 0, "CharterManager/overflow");
-        require(int256(art) >= 0, "CharterManager/overflow");
+        require(int256(ink) >= 0, "Charter/overflow");
+        require(int256(art) >= 0, "Charter/overflow");
         VatLike(vat).fork(
             ilk,
             urp,

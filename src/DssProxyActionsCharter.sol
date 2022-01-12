@@ -568,7 +568,7 @@ contract DssProxyActionsEndCharter is Common {
         VatLike(vat).nope(charter);
         // Frees the position and recovers the collateral in the vat registry
         EndLike(end).free(ilk);
-        // Fluxs to the proxy's manager proxy, so it can be pulled out with the managed gem join
+        // Fluxs to the proxy's charter proxy, so it can be pulled out with the managed gem join
         VatLike(vat).flux(
             ilk,
             address(this),
@@ -629,7 +629,7 @@ contract DssProxyActionsEndCharter is Common {
         bytes32 ilk = GemJoinLike(ethJoin).ilk();
         EndLike(end).cash(ilk, wad);
         uint256 wadC = _mul(wad, EndLike(end).fix(ilk)) / RAY;
-        // Flux to the proxy's UrnProxy in charter manager, so it can be pulled out with the managed gem join
+        // Flux to the proxy's UrnProxy in charter, so it can be pulled out with the managed gem join
         VatLike(vat).flux(
             ilk,
             address(this),
@@ -652,7 +652,7 @@ contract DssProxyActionsEndCharter is Common {
         bytes32 ilk = GemJoinLike(gemJoin).ilk();
         EndLike(end).cash(ilk, wad);
         uint256 wadC = _mul(wad, EndLike(end).fix(ilk)) / RAY;
-        // Flux to the proxy's UrnProxy in charter manager, so it can be pulled out with the managed gem join
+        // Flux to the proxy's UrnProxy in charter, so it can be pulled out with the managed gem join
         VatLike(vat).flux(
             ilk,
             address(this),

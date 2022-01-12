@@ -17,7 +17,7 @@
 pragma solidity 0.6.12;
 
 import "./TestBase.sol";
-import "src/CharterManager.sol";
+import "src/Charter.sol";
 
 import {Vat} from "dss/vat.sol";
 import {Vow} from "dss/vow.sol";
@@ -31,41 +31,41 @@ contract Usr {
 
     bytes32 ilk;
     ManagedGemJoin adapter;
-    CharterManagerImp manager;
+    CharterImp charter;
 
-    constructor(bytes32 ilk_, ManagedGemJoin adapter_, CharterManagerImp manager_) public {
+    constructor(bytes32 ilk_, ManagedGemJoin adapter_, CharterImp charter_) public {
 
         ilk = ilk_;
         adapter = adapter_;
-        manager = manager_;
+        charter = charter_;
     }
 
     function approve(address coin, address usr) public {
         Token(coin).approve(usr, uint256(-1));
     }
     function join(address adapter_, address usr, uint256 wad) public {
-        manager.join(address(adapter_), usr, wad);
+        charter.join(address(adapter_), usr, wad);
     }
     function join(address usr, uint256 wad) public {
-        manager.join(address(adapter), usr, wad);
+        charter.join(address(adapter), usr, wad);
     }
     function join(uint256 wad) public {
-        manager.join(address(adapter), address(this), wad);
+        charter.join(address(adapter), address(this), wad);
     }
     function exit(address adapter_, address usr, uint256 wad) public {
-        manager.exit(address(adapter_), usr, wad);
+        charter.exit(address(adapter_), usr, wad);
     }
     function exit(address usr, uint256 wad) public {
-        manager.exit(address(adapter), usr, wad);
+        charter.exit(address(adapter), usr, wad);
     }
     function exit(uint256 wad) public {
-        manager.exit(address(adapter), address(this), wad);
+        charter.exit(address(adapter), address(this), wad);
     }
     function move(address gemJoin, address usr, uint256 amt) public {
-        manager.move(gemJoin, usr, amt);
+        charter.move(gemJoin, usr, amt);
     }
     function proxy() public view returns (address) {
-        return manager.proxy(address(this));
+        return charter.proxy(address(this));
     }
     function gems() public view returns (uint256) {
         return Vat(address(adapter.vat())).gem(adapter.ilk(), proxy());
@@ -77,34 +77,34 @@ contract Usr {
         return Vat(address(adapter.vat())).dai(address(this));
     }
     function hope(address usr) public {
-        manager.hope(address(usr));
+        charter.hope(address(usr));
     }
     function nope(address usr) public {
-        manager.nope(address(usr));
+        charter.nope(address(usr));
     }
     function frob(int256 dink, int256 dart) public {
-        manager.frob(ilk, address(this), address(this), address(this), dink, dart);
+        charter.frob(ilk, address(this), address(this), address(this), dink, dart);
     }
     function frob(bytes32 ilk_, address u, address v, address w, int256 dink, int256 dart) public {
-        manager.frob(ilk_, u, v, w, dink, dart);
+        charter.frob(ilk_, u, v, w, dink, dart);
     }
     function frobDirect(bytes32 i, address u, address v, address w, int256 dink, int256 dart) public {
-        VatLike(manager.vat()).frob(i, u, v, w, dink, dart);
+        VatLike(charter.vat()).frob(i, u, v, w, dink, dart);
     }
     function roll(bytes32 srcIlk, bytes32 dstIlk, address src, address dst, uint256 srcDart) public {
-        manager.roll(srcIlk, dstIlk, src, dst, srcDart);
+        charter.roll(srcIlk, dstIlk, src, dst, srcDart);
     }
     function flux(address src, address dst, uint256 wad) public {
-        manager.flux(address(adapter), src, dst, wad);
+        charter.flux(address(adapter), src, dst, wad);
     }
     function fluxDirect(address src, address dst, uint256 wad) public {
-        VatLike(manager.vat()).flux(adapter.ilk(), src, dst, wad);
+        VatLike(charter.vat()).flux(adapter.ilk(), src, dst, wad);
     }
     function quit() public {
-        manager.quit(adapter.ilk(), address(this), address(this));
+        charter.quit(adapter.ilk(), address(this), address(this));
     }
     function quit(address u, address dst) public {
-        manager.quit(adapter.ilk(), u, dst);
+        charter.quit(adapter.ilk(), u, dst);
     }
     function joinDirect(address gemJoin, uint256 wad) public {
         GemJoin5(gemJoin).join(address(this), wad);
@@ -142,11 +142,11 @@ contract Usr {
     function can_exit(address usr, uint256 val) public returns (bool) {
         bytes memory call = abi.encodeWithSignature
         ("exit(address,address,uint256)", address(adapter), usr, val);
-        return can_call(address(manager), call);
+        return can_call(address(charter), call);
     }
 }
 
-contract CharterManagerTest is TestBase {
+contract CharterTest is TestBase {
 
     Token               gem;
     Token               dai;
@@ -156,7 +156,7 @@ contract CharterManagerTest is TestBase {
     DaiJoin             daiJoin;
     ManagedGemJoin      adapter;
     ManagedGemJoin      adapter2;
-    CharterManagerImp   manager;
+    CharterImp   charter;
 
     address             self;
     bytes32             ilk  = "TOKEN-A";
@@ -180,9 +180,9 @@ contract CharterManagerTest is TestBase {
         vat.file("Line", 100 * CEILING * 1e27);
         spotter = new Spotter(address(vat));
 
-        CharterManager base = new CharterManager();
-        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow), address(spotter))));
-        manager = CharterManagerImp(address(base));
+        Charter base = new Charter();
+        base.setImplementation(address(new CharterImp(address(vat), address(vow), address(spotter))));
+        charter = CharterImp(address(base));
 
         // init ilk
         vat.init(ilk);
@@ -194,8 +194,8 @@ contract CharterManagerTest is TestBase {
         adapter = new ManagedGemJoin(address(vat), ilk, address(gem));
         vat.rely(address(adapter));
 
-        adapter.rely(address(manager));
-        adapter.deny(address(this));    // Only access should be through manager
+        adapter.rely(address(charter));
+        adapter.deny(address(this));    // Only access should be through charter
 
         // init ilk2
         vat.init(ilk2);
@@ -207,8 +207,8 @@ contract CharterManagerTest is TestBase {
         adapter2 = new ManagedGemJoin(address(vat), ilk2, address(gem));
         vat.rely(address(adapter2));
 
-        adapter2.rely(address(manager));
-        adapter2.deny(address(this));    // Only access should be through manager
+        adapter2.rely(address(charter));
+        adapter2.deny(address(this));    // Only access should be through charter
     }
 
     function cheat_get_dai(address rec, uint256 wad) public {
@@ -238,45 +238,45 @@ contract CharterManagerTest is TestBase {
     }
 
     function init_ilk_ungate(bytes32 ilk_, uint256 Nib, uint256 Peace) public {
-        manager.file(ilk_, "gate", 0);
-        manager.file(ilk_, "Nib", Nib);
-        manager.file(ilk_, "Peace", Peace);
+        charter.file(ilk_, "gate", 0);
+        charter.file(ilk_, "Nib", Nib);
+        charter.file(ilk_, "Peace", Peace);
     }
 
     function init_ilk_gate(bytes32 ilk_, address user, uint256 nib, uint256 peace, uint256 uline) public {
-        manager.file(ilk_, "gate", 1);
-        manager.file(ilk_, user, "nib", nib);
-        manager.file(ilk_, user, "peace", peace);
-        manager.file(ilk_, user, "uline", uline);
+        charter.file(ilk_, "gate", 1);
+        charter.file(ilk_, user, "nib", nib);
+        charter.file(ilk_, user, "peace", peace);
+        charter.file(ilk_, user, "uline", uline);
     }
 
     function init_user(bytes32 ilk_, ManagedGemJoin adapter_, uint256 cash) internal returns (Usr a, Usr b) {
-        a = new Usr(ilk_, adapter_, manager);
-        b = new Usr(ilk_, adapter_, manager);
+        a = new Usr(ilk_, adapter_, charter);
+        b = new Usr(ilk_, adapter_, charter);
 
         gem.transfer(address(a), cash);
         gem.transfer(address(b), cash);
 
-        a.approve(address(gem), address(manager));
-        b.approve(address(gem), address(manager));
+        a.approve(address(gem), address(charter));
+        b.approve(address(gem), address(charter));
 
-        a.hope(address(vat), address(manager));
-        b.hope(address(vat), address(manager));
+        a.hope(address(vat), address(charter));
+        b.hope(address(vat), address(charter));
     }
 
     function test_make_proxy() public {
-        assertEq(manager.proxy(address(this)), address(0));
-        manager.join(address(adapter), address(this), 0);
-        assertTrue(manager.proxy(address(this)) != address(0));
+        assertEq(charter.proxy(address(this)), address(0));
+        charter.join(address(adapter), address(this), 0);
+        assertTrue(charter.proxy(address(this)) != address(0));
     }
 
     function test_hope_nope() public {
         (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
-        assertEq(manager.can(address(b), address(a)), 0);
+        assertEq(charter.can(address(b), address(a)), 0);
         b.hope(address(a));
-        assertEq(manager.can(address(b), address(a)), 1);
+        assertEq(charter.can(address(b), address(a)), 1);
         b.nope(address(a));
-        assertEq(manager.can(address(b), address(a)), 0);
+        assertEq(charter.can(address(b), address(a)), 0);
     }
 
     function test_join_exit_self() public {
@@ -398,7 +398,7 @@ contract CharterManagerTest is TestBase {
         (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 200 * 1e45);
         init_ilk_gate(ilk, address(b), 0, 0, 200 * 1e45);
-        manager.file(ilk, ilk, address(a), address(b), "rollable", 1);
+        charter.file(ilk, ilk, address(a), address(b), "rollable", 1);
 
         a.join(100 * 1e6);
         b.join(100 * 1e6);
@@ -428,7 +428,7 @@ contract CharterManagerTest is TestBase {
         vat.fold(ilk, address(vow), 0.05 * 1e27); // ilk rate is 1.05
         vat.fold(ilk2,address(vow), 0.02 * 1e27); // ilk2 rate is 1.02
 
-        manager.file(ilk, ilk2, address(a), address(b), "rollable", 1);
+        charter.file(ilk, ilk2, address(a), address(b), "rollable", 1);
 
         a.join(100 * 1e6);
         b.join(address(adapter2), address(b), 100 * 1e6);
@@ -459,7 +459,7 @@ contract CharterManagerTest is TestBase {
         vat.fold(ilk, address(vow), 0.05 * 1e27); // ilk rate is 1.05
         vat.fold(ilk2,address(vow), 0.02 * 1e27); // ilk2 rate is 1.02
 
-        manager.file(ilk, ilk2, address(a), address(b), "rollable", 1);
+        charter.file(ilk, ilk2, address(a), address(b), "rollable", 1);
 
         a.join(100 * 1e6);
         b.join(address(adapter2), address(b), 100 * 1e6);
@@ -482,7 +482,7 @@ contract CharterManagerTest is TestBase {
         vat.fold(ilk, address(vow), 0.05 * 1e27); // ilk rate is 1.05
         vat.fold(ilk2,address(vow), 0.02 * 1e27); // ilk2 rate is 1.02
 
-        manager.file(ilk, ilk2, address(a), address(b), "rollable", 1);
+        charter.file(ilk, ilk2, address(a), address(b), "rollable", 1);
 
         a.join(100 * 1e6);
         b.join(address(adapter2), address(b), 100 * 1e6);
@@ -509,7 +509,7 @@ contract CharterManagerTest is TestBase {
         (Usr b,) = init_user(ilk2, adapter2, 200 * 1e6);
         init_ilk_gate(ilk2, address(b), 0, 0, 200 * 1e45);
 
-        manager.file(ilk, ilk2, address(a), address(b), "rollable", 1);
+        charter.file(ilk, ilk2, address(a), address(b), "rollable", 1);
 
         a.join(100 * 1e6);
         b.join(address(adapter2), address(b), 100 * 1e6);
@@ -528,7 +528,7 @@ contract CharterManagerTest is TestBase {
         (Usr b,) = init_user(ilk2, adapter2, 200 * 1e6);
         init_ilk_gate(ilk2, address(b), 0, 0, 200 * 1e45);
 
-        manager.file(ilk, ilk2, address(a), address(b), "rollable", 1);
+        charter.file(ilk, ilk2, address(a), address(b), "rollable", 1);
 
         a.join(100 * 1e6);
         b.join(address(adapter2), address(b), 100 * 1e6);
@@ -547,7 +547,7 @@ contract CharterManagerTest is TestBase {
         (Usr b,) = init_user(ilk2, adapter2, 200 * 1e6);
         init_ilk_ungate(ilk2, 0, 0);
 
-        manager.file(ilk, ilk2, address(a), address(b), "rollable", 1);
+        charter.file(ilk, ilk2, address(a), address(b), "rollable", 1);
 
         a.join(100 * 1e6);
         b.join(address(adapter2), address(b), 100 * 1e6);
@@ -581,7 +581,7 @@ contract CharterManagerTest is TestBase {
         (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 45 * 1e45);
         init_ilk_gate(ilk, address(b), 0, 0, 45 * 1e45);
-        manager.file(ilk, ilk, address(a), address(b), "rollable", 1);
+        charter.file(ilk, ilk, address(a), address(b), "rollable", 1);
 
         a.join(100 * 1e6);
         b.join(100 * 1e6);
@@ -598,7 +598,7 @@ contract CharterManagerTest is TestBase {
         (Usr a, Usr b) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 100 * 1e45);
         init_ilk_gate(ilk, address(b), 0, 3 * RAY, 100 * 1e45);
-        manager.file(ilk, ilk, address(a), address(b), "rollable", 1);
+        charter.file(ilk, ilk, address(a), address(b), "rollable", 1);
 
         a.join(100 * 1e6);
         b.join(100 * 1e6);
@@ -681,7 +681,7 @@ contract CharterManagerTest is TestBase {
         cheat_get_dai(address(this), 2 * 1e18);
         dai.approve(address(daiJoin), 2 * 1e18);
 
-        manager.getOrCreateProxy(address(a));
+        charter.getOrCreateProxy(address(a));
         daiJoin.join(a.proxy(), 2 * 1e18);
         assertEq(vat.dai(a.proxy()), 2 * 1e45);
 
@@ -695,7 +695,7 @@ contract CharterManagerTest is TestBase {
         cheat_get_dai(address(this), 2 * 1e18);
         dai.approve(address(daiJoin), 2 * 1e18);
 
-        manager.getOrCreateProxy(address(a));
+        charter.getOrCreateProxy(address(a));
         daiJoin.join(a.proxy(), 2 * 1e18);
         assertEq(vat.dai(a.proxy()), 2 * 1e45);
 
@@ -710,7 +710,7 @@ contract CharterManagerTest is TestBase {
         cheat_get_dai(address(this), 2 * 1e18);
         dai.approve(address(daiJoin), 2 * 1e18);
 
-        manager.getOrCreateProxy(address(a));
+        charter.getOrCreateProxy(address(a));
         daiJoin.join(a.proxy(), 2 * 1e18);
         assertEq(vat.dai(a.proxy()), 2 * 1e45);
 
@@ -805,11 +805,11 @@ contract CharterManagerTest is TestBase {
         // so that all parties get a fair treatment regarding fees.
         vat.grab(oldIlk, address(old), address(this), address(vow), -int256(ink), -int256(art));
         oldAdapter.exit(address(this), gemAmt);
-        Token(gem).approve(address(manager), gemAmt);
-        manager.join(address(adapter), address(a), gemAmt);
+        Token(gem).approve(address(charter), gemAmt);
+        charter.join(address(adapter), address(a), gemAmt);
         vat.grab(ilk, a.proxy(), a.proxy(), address(vow), dink, dart);
 
-        // make sure new position is as expected under the manager's ilk
+        // make sure new position is as expected under the charter's ilk
         (ink, art) = vat.urns(ilk, a.proxy());
         assertEq(ink, 60 * 1e18);
         assertEq(art, 41176470588235294117); // 40 * (1.05 / 1.02) * 1e18
@@ -907,15 +907,15 @@ contract CharterManagerTest is TestBase {
         a.frob(-1 * 1e18, 0);
     }
 
-    function testFail_frob_undelegated_manager() public {
+    function testFail_frob_undelegated_charter() public {
         (Usr a,) = init_user(ilk, adapter, 200 * 1e6);
         init_ilk_gate(ilk, address(a), 0, 0, 50 * 1e45);
-        a.nope(address(vat), address(manager));
+        a.nope(address(vat), address(charter));
 
         a.join(100 * 1e6);
         a.frob(100 * 1e18, 50 * 1e18);
 
-        // loan repayment should fail as its destination did not delegate the manager
+        // loan repayment should fail as its destination did not delegate the charter
         a.frob(-100 * 1e18, -50 * 1e18);
     }
 
@@ -986,7 +986,7 @@ contract CharterManagerTest is TestBase {
         assertEq(a.gems(), 0);
 
         // remove the debt ceiling entirely
-        manager.file(ilk, address(a), "uline", 0);
+        charter.file(ilk, address(a), "uline", 0);
 
         // partial repay - frob out some of the funds
         a.frob(-10 * 1e18, -15 * 1e18);
@@ -1281,12 +1281,12 @@ contract CharterManagerTest is TestBase {
         assertEq(gem.balanceOf(address(adapter)), 10 * 1e6);
         assertEq(a.gems(), 10 * 1e18);
 
-        address impl = CharterManager(address(manager)).implementation();
+        address impl = Charter(address(charter)).implementation();
         // Replace implementation
-        CharterManager(address(manager)).setImplementation(
-            address(new CharterManagerImp(address(vat), address(vow), address(spotter)))
+        Charter(address(charter)).setImplementation(
+            address(new CharterImp(address(vat), address(vow), address(spotter)))
         );
-        assertTrue(impl != CharterManager(address(manager)).implementation());
+        assertTrue(impl != Charter(address(charter)).implementation());
 
         a.exit(10 * 1e6);
         assertEq(gem.balanceOf(address(a)), 200 * 1e6);
