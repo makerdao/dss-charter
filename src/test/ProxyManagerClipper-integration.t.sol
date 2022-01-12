@@ -17,9 +17,9 @@ pragma solidity 0.6.12;
 
 import "./TestBase.sol";
 import {ManagedGemJoin} from "lib/dss-gem-joins/src/join-managed.sol";
-import {CharterManager,CharterManagerImp} from "src/CharterManager.sol";
+import {Charter,CharterImp} from "src/Charter.sol";
 import {ProxyManagerClipper} from "lib/proxy-manager-clipper/src/ProxyManagerClipper.sol";
-import {Usr} from './CharterManager-unit.t.sol';
+import {Usr} from './Charter-unit.t.sol';
 
 interface VatLike {
     function wards(address) external view returns (uint256);
@@ -111,7 +111,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
     
     Token gem;
     ManagedGemJoin join;
-    CharterManagerImp manager;
+    CharterImp charter;
     ProxyManagerClipper clipper;
     Pip pip;
     Abacus abacus;
@@ -151,17 +151,17 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
 
         gem     = new Token(18, 10**6 * WAD);
         join    = new ManagedGemJoin(address(vat), ILK, address(gem));
-        CharterManager base = new CharterManager();
-        base.setImplementation(address(new CharterManagerImp(address(vat), address(vow), address(0))));
-        manager = CharterManagerImp(address(base));
-        clipper = new ProxyManagerClipper(address(vat), address(spotter), address(dog), address(join), address(manager));
+        Charter base = new Charter();
+        base.setImplementation(address(new CharterImp(address(vat), address(vow), address(0))));
+        charter = CharterImp(address(base));
+        clipper = new ProxyManagerClipper(address(vat), address(spotter), address(dog), address(join), address(charter));
 
         // Auth setup
         clipper.rely(address(dog));
         dog.rely(address(clipper));
         vat.rely(address(join));
-        join.rely(address(manager));
-        join.deny(address(this));    // Only access should be through manager
+        join.rely(address(charter));
+        join.deny(address(this));    // Only access should be through charter
 
         // Initialize GEM-A in the Dog
         dog.file(ILK, "hole", 10**6 * RAD);
@@ -175,17 +175,17 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         clipper.file("calc", address(abacus));
 
         // Create Vault
-        usr = new Usr(ILK, join, manager);
+        usr = new Usr(ILK, join, charter);
         gem.transfer(address(usr), 10**3 * WAD);
-        usr.approve(address(gem), address(manager));
+        usr.approve(address(gem), address(charter));
         usr.join(10**3 * WAD);
         usr.frob(int256(10**3 * WAD), int256(500 * WAD));  // Draw maximum possible debt
 
         // Draw some DAI for this contract for bidding on auctions.
         // This conveniently provisions an UrnProxy for the test contract as well.
-        gem.approve(address(manager), uint256(-1));
-        manager.join(address(join), address(this), 10**4 * WAD);
-        manager.frob(ILK, address(this), address(this), address(this), int256(10**4 * WAD), int256(1000 * WAD));
+        gem.approve(address(charter), uint256(-1));
+        charter.join(address(join), address(this), 10**4 * WAD);
+        charter.frob(ILK, address(this), address(this), address(this), int256(10**4 * WAD), int256(1000 * WAD));
 
         // Hope the clipper so we can bid.
         vat.hope(address(clipper));
@@ -218,7 +218,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         assertEq(tab, 0);
         assertEq(lot, 0);
 
-        manager.exit(address(join), address(this), 10**3 * WAD);
+        charter.exit(address(join), address(this), 10**3 * WAD);
         assertEq(gem.balanceOf(address(this)), add(initialGemBal, 10**3 * WAD));
     }
 
@@ -251,7 +251,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
         uint256 collateralReturned = sub(10**3 * WAD, expectedPurchaseSize);
 
         // We can exit
-        manager.exit(address(join), address(this), expectedPurchaseSize);
+        charter.exit(address(join), address(this), expectedPurchaseSize);
         assertEq(gem.balanceOf(address(this)), add(initialGemBal, expectedPurchaseSize));
 
         // Liquidated urn can exit
@@ -260,7 +260,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
     }
 
     function test_yank() public {
-        address urp = manager.proxy(address(this));
+        address urp = charter.proxy(address(this));
         uint256 initialGemBal   = gem.balanceOf(address(this));
 
         uint256 id = dog.bark(ILK, usr.proxy(), address(this));
@@ -272,7 +272,7 @@ contract ProxyManagerClipperIntegrationTest is TestBase {
 
         // We can exit if we flux to our UrnProxy.
         vat.flux(ILK, address(this), urp, 10**3 * WAD);
-        manager.exit(address(join), address(this), 10**3 * WAD);
+        charter.exit(address(join), address(this), 10**3 * WAD);
         assertEq(gem.balanceOf(address(this)), add(initialGemBal, 10**3 * WAD));
     }
 }
