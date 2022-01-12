@@ -20,13 +20,10 @@ interface CdpManagerLike {
     function open(bytes32, address) external returns (uint256);
 }
 
-contract CdpIdRegistry {
+contract CdpRegistry {
     mapping (uint256 => address) public owns; // CDPId => Owner
     mapping (uint256 => bytes32) public ilks; // CDPId => Ilk
     mapping (bytes32 => mapping (address => uint256)) public cdps; // Owner => Ilk => CDPId
-
-    // for fast ownership check
-    mapping (uint256 => mapping(bytes32 => address)) public ownsIlk; // CDPId => Ilk => Owner
 
     address public immutable cdpManager;
 
@@ -47,8 +44,6 @@ contract CdpIdRegistry {
         owns[cdpi] = usr;
         ilks[cdpi] = ilk;
         cdps[ilk][usr] = cdpi;
-
-        ownsIlk[cdpi][ilk] = usr;
 
         emit NewCdpId(msg.sender, usr, cdpi);
         return cdpi;
