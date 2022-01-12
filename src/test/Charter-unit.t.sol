@@ -156,7 +156,7 @@ contract CharterTest is TestBase {
     DaiJoin             daiJoin;
     ManagedGemJoin      adapter;
     ManagedGemJoin      adapter2;
-    CharterImp   charter;
+    CharterImp          charter;
 
     address             self;
     bytes32             ilk  = "TOKEN-A";
