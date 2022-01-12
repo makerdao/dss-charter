@@ -21,6 +21,7 @@ As in CropJoin, liquidations can only be done by users who created a UrnProxy th
 - `Peace`: minimal collateralization ratio (for vaults in unpermissioned ilks).
 - `peace`: per user minimal collateralization ratio (for vaults in permissioned ilks).
 - `uline` : per user debt ceiling for a specific ilk (for permissioned ilks).
+- `rollable` : whether a vault can move debt to another vault without paying origination fees (for vaults in permissioned ilks). 
 
 ### Proxy Actions
 
