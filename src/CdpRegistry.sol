@@ -23,7 +23,7 @@ interface CdpManagerLike {
 contract CdpRegistry {
     mapping (uint256 => address) public owns; // CDPId => Owner
     mapping (uint256 => bytes32) public ilks; // CDPId => Ilk
-    mapping (bytes32 => mapping (address => uint256)) public cdps; // Owner => Ilk => CDPId
+    mapping (bytes32 => mapping (address => uint256)) public cdps; // Ilk => Owner => CDPId
 
     address public immutable cdpManager;
 
