@@ -50,7 +50,7 @@ contract ProxyCalls {
         proxy.execute(dssProxyActions, msg.data);
     }
 
-    function daiJoin_join(address, uint256) public {
+    function daiJoin_join(address, address, uint256) public {
         proxy.execute(dssProxyActions, msg.data);
     }
 
@@ -413,7 +413,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         this.lockGem(address(wbtcJoin), cdpWbtc, 1000 * 10 ** 8);
         this.draw(address(jug), address(daiJoin), cdpWbtc, 1000 ether);
         dai.approve(address(proxy), 1000 ether);
-        this.daiJoin_join(address(daiJoin), 1000 ether);
+        this.daiJoin_join(address(daiJoin), address(proxy), 1000 ether);
 
         this.wipeAll(address(daiJoin), cdpEth);
         assertEq(dai.balanceOf(address(this)), 300 ether);
