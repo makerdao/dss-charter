@@ -217,30 +217,31 @@ contract DssProxyActionsCharter is Common {
 
     function _frob(
         bytes32 ilk,
+        address u,
         int256 dink,
         int256 dart
     ) internal {
-        CharterLike(charter).frob(ilk, address(this), address(this), address(this), dink, dart);
+        CharterLike(charter).frob(ilk, u, u, u, dink, dart);
     }
 
-    function _ethJoin_join(address ethJoin) internal {
+    function _ethJoin_join(address ethJoin, address u) internal {
         GemLike gem = GemJoinLike(ethJoin).gem();
         // Wraps ETH in WETH
         gem.deposit{value: msg.value}();
         // Approves adapter to take the WETH amount
         gem.approve(charter, msg.value);
         // Joins WETH collateral into the vat
-        CharterLike(charter).join(ethJoin, address(this), msg.value);
+        CharterLike(charter).join(ethJoin, u, msg.value);
     }
 
-    function _gemJoin_join(address gemJoin, uint256 amt) internal {
+    function _gemJoin_join(address gemJoin, address u, uint256 amt) internal {
         GemLike gem = GemJoinLike(gemJoin).gem();
         // Gets token from the user's wallet
         gem.transferFrom(msg.sender, address(this), amt);
         // Approves adapter to take the token amount
         gem.approve(charter, amt);
         // Joins token collateral into the vat
-        CharterLike(charter).join(gemJoin, address(this), amt);
+        CharterLike(charter).join(gemJoin, u, amt);
     }
 
     // Public functions
@@ -271,11 +272,9 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         address dst
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
-
         CharterLike(charter).quit(
             CdpRegistryLike(cdpRegistry).ilks(cdp),
-            address(this),
+            CdpRegistryLike(cdpRegistry).owns(cdp),
             dst
         );
     }
@@ -284,12 +283,12 @@ contract DssProxyActionsCharter is Common {
         address ethJoin,
         uint256 cdp
     ) external payable {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
+        address owner = CdpRegistryLike(cdpRegistry).owns(cdp);
 
         // Receives ETH amount, converts it to WETH and joins it into the vat
-        _ethJoin_join(ethJoin);
+        _ethJoin_join(ethJoin, owner);
         // Locks WETH amount into the CDP
-        _frob(CdpRegistryLike(cdpRegistry).ilks(cdp), _toInt256(msg.value), 0);
+        _frob(CdpRegistryLike(cdpRegistry).ilks(cdp), owner, _toInt256(msg.value), 0);
     }
 
     function lockGem(
@@ -297,12 +296,12 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 amt
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
+        address owner = CdpRegistryLike(cdpRegistry).owns(cdp);
 
         // Takes token amount from user's wallet and joins into the vat
-        _gemJoin_join(gemJoin, amt);
+        _gemJoin_join(gemJoin, owner, amt);
         // Locks token amount into the CDP
-        _frob(CdpRegistryLike(cdpRegistry).ilks(cdp), _toInt256(_convertTo18(gemJoin, amt)), 0);
+        _frob(CdpRegistryLike(cdpRegistry).ilks(cdp), owner, _toInt256(_convertTo18(gemJoin, amt)), 0);
     }
 
     function freeETH(
@@ -310,10 +309,12 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 wad
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
-
         // Unlocks WETH amount from the CDP
-        _frob(CdpRegistryLike(cdpRegistry).ilks(cdp), -_toInt256(wad), 0);
+        _frob(
+            CdpRegistryLike(cdpRegistry).ilks(cdp),
+            CdpRegistryLike(cdpRegistry).owns(cdp),
+            -_toInt256(wad),
+            0);
         // Exits WETH amount to proxy address as a token
         CharterLike(charter).exit(ethJoin, address(this), wad);
         // Converts WETH to ETH
@@ -322,16 +323,18 @@ contract DssProxyActionsCharter is Common {
         msg.sender.transfer(wad);
     }
 
-
     function freeGem(
         address gemJoin,
         uint256 cdp,
         uint256 amt
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
-
         // Unlocks token amount from the CDP
-        _frob(CdpRegistryLike(cdpRegistry).ilks(cdp), -_toInt256(_convertTo18(gemJoin, amt)), 0);
+        _frob(
+            CdpRegistryLike(cdpRegistry).ilks(cdp),
+            CdpRegistryLike(cdpRegistry).owns(cdp),
+            -_toInt256(_convertTo18(gemJoin, amt)),
+            0
+        );
         // Exits token amount to the user's wallet as a token
         CharterLike(charter).exit(gemJoin, msg.sender, amt);
     }
@@ -370,11 +373,10 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 wad
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
         bytes32 ilk = CdpRegistryLike(cdpRegistry).ilks(cdp);
 
         // Generates debt in the CDP
-        _frob(ilk, 0, _getDrawDart(jug, ilk, wad));
+        _frob(ilk, CdpRegistryLike(cdpRegistry).owns(cdp), 0, _getDrawDart(jug, ilk, wad));
         // Allows adapter to access to proxy's DAI balance in the vat
         if (VatLike(vat).can(address(this), address(daiJoin)) == 0) {
             VatLike(vat).hope(daiJoin);
@@ -388,7 +390,6 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 wad
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
         bytes32 ilk = CdpRegistryLike(cdpRegistry).ilks(cdp);
 
         // Joins DAI amount into the vat
@@ -398,6 +399,7 @@ contract DssProxyActionsCharter is Common {
         // Paybacks debt to the CDP
         _frob(
             ilk,
+            CdpRegistryLike(cdpRegistry).owns(cdp),
             0,
             _getWipeDart(
                 VatLike(vat).dai(address(this)),
@@ -413,10 +415,10 @@ contract DssProxyActionsCharter is Common {
         address daiJoin,
         uint256 cdp
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
+        address owner = CdpRegistryLike(cdpRegistry).owns(cdp);
         bytes32 ilk = CdpRegistryLike(cdpRegistry).ilks(cdp);
 
-        address urp = CharterLike(charter).getOrCreateProxy(address(this));
+        address urp = CharterLike(charter).getOrCreateProxy(owner);
         (, uint256 art) = VatLike(vat).urns(ilk, urp);
 
         // Joins DAI amount into the vat
@@ -424,7 +426,7 @@ contract DssProxyActionsCharter is Common {
         // Allows charter to access to proxy's DAI balance in the vat
         VatLike(vat).hope(charter);
         // Paybacks debt to the CDP
-        _frob(ilk, 0, -_toInt256(art));
+        _frob(ilk, owner, 0, -_toInt256(art));
         // Denies charter to access to proxy's DAI balance in the vat after execution
         VatLike(vat).nope(charter);
     }
@@ -436,14 +438,15 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 wadD
     ) external payable {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
+        address owner = CdpRegistryLike(cdpRegistry).owns(cdp);
         bytes32 ilk = CdpRegistryLike(cdpRegistry).ilks(cdp);
 
         // Receives ETH amount, converts it to WETH and joins it into the vat
-        _ethJoin_join(ethJoin);
+        _ethJoin_join(ethJoin, owner);
         // Locks WETH amount into the CDP and generates debt
         _frob(
             ilk,
+            owner,
             _toInt256(msg.value),
             _getDrawDart(
                 jug,
@@ -467,14 +470,15 @@ contract DssProxyActionsCharter is Common {
         uint256 amtC,
         uint256 wadD
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
+        address owner = CdpRegistryLike(cdpRegistry).owns(cdp);
         bytes32 ilk = CdpRegistryLike(cdpRegistry).ilks(cdp);
 
         // Takes token amount from user's wallet and joins into the vat
-        _gemJoin_join(gemJoin, amtC);
+        _gemJoin_join(gemJoin, owner, amtC);
         // Locks token amount into the CDP and generates debt
         _frob(
             ilk,
+            owner,
             _toInt256(_convertTo18(gemJoin, amtC)),
             _getDrawDart(
                 jug,
@@ -497,7 +501,7 @@ contract DssProxyActionsCharter is Common {
         uint256 wadC,
         uint256 wadD
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
+        address owner = CdpRegistryLike(cdpRegistry).owns(cdp);
         bytes32 ilk = CdpRegistryLike(cdpRegistry).ilks(cdp);
 
         // Joins DAI amount into the vat
@@ -507,10 +511,11 @@ contract DssProxyActionsCharter is Common {
         // Paybacks debt to the CDP and unlocks WETH amount from it
         _frob(
             ilk,
+            owner,
             -_toInt256(wadC),
             _getWipeDart(
                 VatLike(vat).dai(address(this)),
-                CharterLike(charter).getOrCreateProxy(address(this)),
+                CharterLike(charter).getOrCreateProxy(owner),
                 ilk
             )
         );
@@ -530,10 +535,10 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 wadC
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
+        address owner = CdpRegistryLike(cdpRegistry).owns(cdp);
         bytes32 ilk = CdpRegistryLike(cdpRegistry).ilks(cdp);
 
-        address urp = CharterLike(charter).getOrCreateProxy(address(this));
+        address urp = CharterLike(charter).getOrCreateProxy(owner);
         (, uint256 art) = VatLike(vat).urns(ilk, urp);
 
         // Joins DAI amount into the vat
@@ -541,7 +546,7 @@ contract DssProxyActionsCharter is Common {
         // Allows charter to access to proxy's DAI balance in the vat
         VatLike(vat).hope(charter);
         // Paybacks debt to the CDP and unlocks WETH amount from it
-        _frob(ilk, -_toInt256(wadC), -_toInt256(art));
+        _frob(ilk, owner, -_toInt256(wadC), -_toInt256(art));
         // Denies charter to access to proxy's DAI balance in the vat after execution
         VatLike(vat).nope(charter);
         // Exits WETH amount to proxy address as a token
@@ -559,7 +564,7 @@ contract DssProxyActionsCharter is Common {
         uint256 amtC,
         uint256 wadD
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
+        address owner = CdpRegistryLike(cdpRegistry).owns(cdp);
         bytes32 ilk = CdpRegistryLike(cdpRegistry).ilks(cdp);
 
         // Joins DAI amount into the vat
@@ -569,10 +574,11 @@ contract DssProxyActionsCharter is Common {
         // Paybacks debt to the CDP and unlocks token amount from it
         _frob(
             ilk,
+            owner,
             -_toInt256(_convertTo18(gemJoin, amtC)),
             _getWipeDart(
                 VatLike(vat).dai(address(this)),
-                CharterLike(charter).getOrCreateProxy(address(this)),
+                CharterLike(charter).getOrCreateProxy(owner),
                 ilk
             )
         );
@@ -588,10 +594,10 @@ contract DssProxyActionsCharter is Common {
         uint256 cdp,
         uint256 amtC
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
+        address owner = CdpRegistryLike(cdpRegistry).owns(cdp);
         bytes32 ilk = CdpRegistryLike(cdpRegistry).ilks(cdp);
 
-        address urp = CharterLike(charter).getOrCreateProxy(address(this));
+        address urp = CharterLike(charter).getOrCreateProxy(owner);
         (, uint256 art) = VatLike(vat).urns(ilk, urp);
 
         // Joins DAI amount into the vat
@@ -599,7 +605,7 @@ contract DssProxyActionsCharter is Common {
         // Allows charter to access to proxy's DAI balance in the vat
         VatLike(vat).hope(charter);
         // Paybacks debt to the CDP and unlocks token amount from it
-        _frob(ilk, -_toInt256(_convertTo18(gemJoin, amtC)), -_toInt256(art));
+        _frob(ilk, owner, -_toInt256(_convertTo18(gemJoin, amtC)), -_toInt256(art));
         // Denies charter to access to proxy's DAI balance in the vat after execution
         VatLike(vat).nope(charter);
         // Exits token amount to the user's wallet as a token
@@ -633,9 +639,10 @@ contract DssProxyActionsEndCharter is Common {
 
     function _free(
         address end,
+        address u,
         bytes32 ilk
     ) internal returns (uint256 ink) {
-        address urp = CharterLike(charter).getOrCreateProxy(address(this));
+        address urp = CharterLike(charter).getOrCreateProxy(u);
         uint256 art;
         (ink, art) = VatLike(vat).urns(ilk, urp);
 
@@ -647,7 +654,7 @@ contract DssProxyActionsEndCharter is Common {
         // Approves the charter to transfer the position to proxy's address in the vat
         VatLike(vat).hope(charter);
         // Transfers position from CDP to the proxy address
-        CharterLike(charter).quit(ilk, address(this), address(this));
+        CharterLike(charter).quit(ilk, u, address(this));
         // Denies charter to access to proxy's position in the vat after execution
         VatLike(vat).nope(charter);
         // Frees the position and recovers the collateral in the vat registry
@@ -667,10 +674,8 @@ contract DssProxyActionsEndCharter is Common {
         address end,
         uint256 cdp
     ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
-
         // Frees the position through the end contract
-        uint256 wad = _free(end, CdpRegistryLike(cdpRegistry).ilks(cdp));
+        uint256 wad = _free(end, CdpRegistryLike(cdpRegistry).owns(cdp), CdpRegistryLike(cdpRegistry).ilks(cdp));
         // Exits WETH amount to proxy address as a token
         CharterLike(charter).exit(ethJoin, address(this), wad);
         // Converts WETH to ETH
@@ -684,10 +689,8 @@ contract DssProxyActionsEndCharter is Common {
         address end,
         uint256 cdp
 ) external {
-        require(CdpRegistryLike(cdpRegistry).owns(cdp) == address(this), "wrong-cdp");
-
         // Frees the position through the end contract
-        uint256 wad = _free(end, CdpRegistryLike(cdpRegistry).ilks(cdp));
+        uint256 wad = _free(end, CdpRegistryLike(cdpRegistry).owns(cdp), CdpRegistryLike(cdpRegistry).ilks(cdp));
         // Exits token amount to the user's wallet as a token
         uint256 amt = wad / 10 ** (18 - GemJoinLike(gemJoin).dec());
         CharterLike(charter).exit(gemJoin, msg.sender, amt);
