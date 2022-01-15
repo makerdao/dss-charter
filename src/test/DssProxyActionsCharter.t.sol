@@ -124,6 +124,10 @@ contract ProxyCalls {
         proxy.execute(dssProxyActions, msg.data);
     }
 
+    function roll(uint256, uint256, uint256) public {
+        proxy.execute(dssProxyActions, msg.data);
+    }
+
     function end_freeETH(address a, address b, uint256 c) public {
         proxy.execute(dssProxyActionsEnd, abi.encodeWithSignature("freeETH(address,address,uint256)", a, b, c));
     }
@@ -559,6 +563,40 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(art("WBTC", charterProxy), 0);
         assertEq(dai.balanceOf(address(this)), 0);
         assertEq(wbtc.balanceOf(address(this)), prevBalance - 0.5 * 10 ** 8);
+    }
+
+    function testRoll() public {
+        charter.file("ETH", "gate", 1);
+        charter.file("ETH", address(proxy), "uline", 1000 * 10 ** 45);
+        charter.file("WBTC", "gate", 1);
+        charter.file("WBTC", address(proxy), "uline", 1000 * 10 ** 45);
+        charter.file("ETH", "WBTC", address(proxy), address(proxy), "rollable", 1);
+
+        // set different rates per ilk
+        this.file(address(jug), bytes32("ETH"), bytes32("duty"), uint256(1.05 * 10 ** 27));
+        this.file(address(jug), bytes32("WBTC"), bytes32("duty"), uint256(1.03 * 10 ** 27));
+        hevm.warp(now + 1);
+        jug.drip("ETH");
+        jug.drip("WBTC");
+
+        uint256 cdpEth = this.open("ETH");
+        uint256 cdpWbtc = this.open("WBTC");
+
+        this.lockETHAndDraw{value: 2 ether}(address(jug), address(ethManagedJoin), address(daiJoin), cdpEth, 100 ether);
+        wbtc.approve(address(proxy), 1 * 10 ** 8);
+        this.lockGemAndDraw(address(jug), address(wbtcJoin), address(daiJoin), cdpWbtc, 1 * 10 ** 8, 5 ether);
+
+        uint256 artEthBefore = art("ETH", charterProxy);
+        assertEq(artEthBefore, mul(100 ether, RAY) / (1.05 * 10 ** 27) + 1); // 1 dart unit added in draw
+        uint256 artWbtcBefore = art("WBTC", charterProxy);
+        assertEq(artWbtcBefore, mul(5 ether, RAY) / (1.03 * 10 ** 27));
+        assertLt(vat.dai(address(proxy)), RAD / 1000000); // There should remain just dust
+
+        this.roll(cdpEth, cdpWbtc, 5 ether);
+
+        assertEq(art("ETH", charterProxy), artEthBefore - mul(5 ether, RAY) / (1.05 * 10 ** 27));
+        assertEq(art("WBTC", charterProxy), artWbtcBefore + mul(5 ether, RAY) / (1.03 * 10 ** 27));
+        assertLt(vat.dai(address(proxy)), RAD / 1000000); // There should remain just dust
     }
 
     function testHopeNope() public {

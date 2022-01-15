@@ -31,6 +31,7 @@ interface CharterLike {
     function getOrCreateProxy(address) external returns (address);
     function join(address, address, uint256) external;
     function exit(address, address, uint256) external;
+    function roll(bytes32, bytes32, address, address, uint256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
     function quit(bytes32, address, address) external;
     function gate(bytes32) external view returns (uint256);
@@ -603,6 +604,24 @@ contract DssProxyActionsCharter is Common {
         VatLike(vat).nope(charter);
         // Exits token amount to the user's wallet as a token
         CharterLike(charter).exit(gemJoin, msg.sender, amtC);
+    }
+
+    function roll(
+        uint256 srcCdp,
+        uint256 dstCdp,
+        uint256 wad
+    ) external {
+        bytes32 srcIlk = CdpRegistryLike(cdpRegistry).ilks(srcCdp);
+
+        // Gets actual rate from the vat
+        (, uint256 rate,,,) = VatLike(vat).ilks(srcIlk);
+        CharterLike(charter).roll(
+            srcIlk,
+            CdpRegistryLike(cdpRegistry).ilks(dstCdp),
+            CdpRegistryLike(cdpRegistry).owns(srcCdp),
+            CdpRegistryLike(cdpRegistry).owns(dstCdp),
+            _mul(wad, RAY) / rate
+        );
     }
 }
 
