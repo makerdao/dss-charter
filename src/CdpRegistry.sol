@@ -27,7 +27,7 @@ contract CdpRegistry {
 
     address public immutable cdpManager;
 
-    event NewCdpId(address indexed sender, address indexed owner, uint256 indexed cdp);
+    event NewCdpRegistered(address indexed sender, address indexed owner, uint256 indexed cdp);
 
     constructor(address cdpManager_) public {
         cdpManager = cdpManager_;
@@ -45,7 +45,7 @@ contract CdpRegistry {
         ilks[cdpi] = ilk;
         cdps[ilk][usr] = cdpi;
 
-        emit NewCdpId(msg.sender, usr, cdpi);
+        emit NewCdpRegistered(msg.sender, usr, cdpi);
         return cdpi;
     }
 }

@@ -20,7 +20,7 @@ interface HevmStoreLike {
 contract MockCdpManager {
     uint256 public cdpi;
 
-    function open(bytes32 ilk, address usr) public returns (uint256) {
+    function open(bytes32, address) public returns (uint256) {
         cdpi = cdpi + 1;
         return cdpi;
     }
@@ -506,6 +506,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         uint256 initialBalance = address(this).balance;
         assertEq(dai.balanceOf(address(this)), 0);
         uint256 cdp = this.openLockETHAndDraw{value: 2 ether}(address(jug), address(ethManagedJoin), address(daiJoin), "ETH", 300 ether);
+        assertEq(cdpRegistry.owns(cdp), address(proxy));
         assertEq(ink("ETH", charterProxy), 2 ether);
         assertEq(dai.balanceOf(address(this)), 300 ether);
         assertEq(address(this).balance, initialBalance - 2 ether);
@@ -542,6 +543,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(dai.balanceOf(charterProxy), 0);
         uint256 prevBalance = wbtc.balanceOf(address(this));
         uint256 cdp = this.openLockGemAndDraw(address(jug), address(wbtcJoin), address(daiJoin), "WBTC", 2 * 10 ** 8, 10 ether);
+        assertEq(cdpRegistry.owns(cdp), address(proxy));
         assertEq(ink("WBTC", charterProxy), 2 ether);
         assertEq(dai.balanceOf(address(this)), 10 ether);
         assertEq(wbtc.balanceOf(address(this)), prevBalance - 2 * 10 ** 8);

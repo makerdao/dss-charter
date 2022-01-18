@@ -382,12 +382,7 @@ contract DssProxyActionsCharter is Common {
         bytes32 ilk = CdpRegistryLike(cdpRegistry).ilks(cdp);
 
         // Generates debt in the CDP
-        _frob(
-            ilk,
-            owner,
-            0,
-            _getDrawDart(jug, owner, ilk, wad)
-        );
+        _frob(ilk, owner, 0, _getDrawDart(jug, owner, ilk, wad));
         // Allows adapter to access to proxy's DAI balance in the vat
         if (VatLike(vat).can(address(this), address(daiJoin)) == 0) {
             VatLike(vat).hope(daiJoin);
