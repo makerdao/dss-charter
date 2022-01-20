@@ -406,7 +406,7 @@ contract DssProxyActionsCharter is Common {
         // Paybacks debt to the CDP
         _frob(
             ilk,
-            CdpRegistryLike(cdpRegistry).owns(cdp),
+            owner
             0,
             _getWipeDart(
                 VatLike(vat).dai(owner),
