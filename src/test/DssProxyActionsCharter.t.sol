@@ -519,7 +519,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         uint256 cdp = this.open("ETH", address(proxy));
         uint256 initialBalance = address(this).balance;
         assertEq(ink("ETH", charterProxy), 0);
-        assertEq(dai.balanceOf(charterProxy), 0);
+        assertEq(dai.balanceOf(address(this)), 0);
         this.lockETHAndDraw{value: 2 ether}(address(jug), address(ethManagedJoin), address(daiJoin), cdp, 300 ether);
         assertEq(ink("ETH", charterProxy), 2 ether);
         assertEq(dai.balanceOf(address(this)), 300 ether);
