@@ -100,6 +100,6 @@ contract CdpRegistryTest is TestBase {
     }
 
     function testFail_open_for_other_usr() public {
-        uint256 cdp = usr1.open("ILK1", address(usr2));
+        usr1.open("ILK1", address(usr2));
     }
 }
