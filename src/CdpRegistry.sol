@@ -37,7 +37,7 @@ contract CdpRegistry {
         bytes32 ilk,
         address usr
     ) public returns (uint256) {
-        require(usr != address(0), "usr-address-0");
+        require(usr == msg.sender, "usr-not-sender");
         require(cdps[ilk][usr] == 0, "usr-cdp-exists");
 
         uint256 cdpi = CdpManagerLike(cdpManager).open(ilk, address(this));
