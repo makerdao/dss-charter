@@ -177,13 +177,13 @@ contract DssProxyActionsCharter is Common {
 
     function _getWipeDart(
         uint256 dai,
-        address urp,
+        address u,
         bytes32 ilk
-    ) internal view returns (int256 dart) {
+    ) internal returns (int256 dart) {
         // Gets actual rate from the vat
         (, uint256 rate,,,) = VatLike(vat).ilks(ilk);
         // Gets actual art value of the urn
-        (, uint256 art) = VatLike(vat).urns(ilk, urp);
+        (, uint256 art) = VatLike(vat).urns(ilk, CharterLike(charter).getOrCreateProxy(u));
 
         // Uses the whole dai balance in the vat to reduce the debt
         dart = _toInt256(dai / rate);
@@ -410,7 +410,7 @@ contract DssProxyActionsCharter is Common {
             0,
             _getWipeDart(
                 VatLike(vat).dai(owner),
-                CharterLike(charter).getOrCreateProxy(owner),
+                owner,
                 ilk
             )
         );
@@ -547,7 +547,7 @@ contract DssProxyActionsCharter is Common {
             -_toInt256(wadC),
             _getWipeDart(
                 VatLike(vat).dai(owner),
-                CharterLike(charter).getOrCreateProxy(owner),
+                owner,
                 ilk
             )
         );
@@ -610,7 +610,7 @@ contract DssProxyActionsCharter is Common {
             -_toInt256(_convertTo18(gemJoin, amtC)),
             _getWipeDart(
                 VatLike(vat).dai(owner),
-                CharterLike(charter).getOrCreateProxy(owner),
+                owner,
                 ilk
             )
         );
