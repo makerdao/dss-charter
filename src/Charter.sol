@@ -320,7 +320,7 @@ contract CharterImp {
         VatLike(vat).flux(ManagedGemJoinLike(gemJoin).ilk(), surp, durp, wad);
     }
 
-    function flee(address gemJoin) external {
+    function flee(address) external {
         revert("Charter/unsupported");
     }
 
