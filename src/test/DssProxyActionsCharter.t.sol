@@ -4,7 +4,7 @@ import "ds-test/test.sol";
 
 import "../DssProxyActionsCharter.sol";
 import {Charter, CharterImp} from "../Charter.sol";
-import {CdpRegistry} from "../CdpRegistry.sol";
+import {CdpRegistry} from "lib/dss-cdp-registry/src/CdpRegistry.sol";
 import {ManagedGemJoin} from "lib/dss-gem-joins/src/join-managed.sol";
 
 import {DssDeployTestBase} from "dss-deploy/DssDeploy.t.base.sol";
