@@ -272,17 +272,6 @@ contract DssProxyActionsCharter is Common {
         cdp = CdpRegistryLike(cdpRegistry).open(ilk, usr);
     }
 
-    function quit(
-        uint256 cdp,
-        address dst
-    ) external {
-        CharterLike(charter).quit(
-            CdpRegistryLike(cdpRegistry).ilks(cdp),
-            CdpRegistryLike(cdpRegistry).owns(cdp),
-            dst
-        );
-    }
-
     function lockETH(
         address ethJoin,
         uint256 cdp
