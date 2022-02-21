@@ -130,6 +130,10 @@ contract DssProxyActionsCharter is Common {
         require((z = x - y) <= x, "sub-overflow");
     }
 
+    function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x != 0 ? ((x - 1) / y) + 1 : 0;
+    }
+
     function _toInt256(uint256 x) internal pure returns (int256 y) {
         y = int256(x);
         require(y >= 0, "int-overflow");
@@ -161,17 +165,17 @@ contract DssProxyActionsCharter is Common {
         //    just exits it without adding more debt
         uint256 rad = _mul(wad, RAY);
         if (dai < rad) {
-            uint256 netToDraw = rad - dai; // dai < rad
-
             uint256 nib = (CharterLike(charter).gate(ilk) == 1) ?
                 CharterLike(charter).nib(ilk, u) :
                 CharterLike(charter).Nib(ilk);
 
             // Calculates the needed dart so together with the existing dai in the vat is enough to exit wad amount of DAI tokens
-            dart = _toInt256(_mul(netToDraw, WAD) / _sub(_mul(rate, WAD), _mul(rate, nib))); // wad
-            uint256 dtab = _mul(uint256(dart), rate);
-            // This is needed due lack of precision, it might need to sum an extra dart wei
-            dart = _sub(dtab, _mul(dtab, nib) / WAD) < netToDraw ? dart + 1 : dart;
+            dart = _toInt256(
+                _divup(
+                    _mul(rad - dai, WAD), // safe since dai < rad
+                    _mul(rate, _sub(WAD, nib))
+                )
+            );
         }
     }
 
@@ -208,11 +212,7 @@ contract DssProxyActionsCharter is Common {
         // If there was already enough DAI in the vat balance, no need to join more
         uint256 debt = _mul(art, rate);
         if (debt > dai) {
-            uint256 rad = _sub(debt, dai);
-            wad = rad / RAY;
-
-            // If the rad precision has some dust, it will need to request for 1 extra wad wei
-            wad = _mul(wad, RAY) < rad ? wad + 1 : wad;
+            wad = _divup(debt - dai, RAY); // safe since debt > dai
         }
     }
 
