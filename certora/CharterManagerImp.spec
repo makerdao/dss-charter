@@ -242,12 +242,11 @@ rule nope_revert(address usr) {
     assert(lastReverted => revert1, "disallow_revert does not cover all revert conditions");
 }
 
-// TODO: figure out how to verify proxy creation case
-rule getOrCreateProxy_proxy_already_exists(address usr) {
+rule getOrCreateProxy(address usr) {
     address proxyAddr = proxy(usr);
-    require(proxyAddr != 0);
     getOrCreateProxy(usr);
-    assert(proxyAddr == proxy(usr), "getOrCreatProxy changed the user's proxy unexpectedly");
+    assert(proxyAddr == 0 => proxy(usr) != 0, "getOrCreateProxy did not create a proxy as expected");
+    assert(proxyAddr != 0 => proxyAddr == proxy(usr), "getOrCreatProxy changed the user's proxy unexpectedly");
 }
 
 // broken due to overapproximation of 10^k (fixed in staging, remove comment once the fix is pushed to production)
