@@ -18,8 +18,8 @@ As in CropJoin, liquidations can only be done by users who created a UrnProxy th
 - `gate` : whether the ilk is permissioned.
 - `Nib` : per ilk relative fee (for unpermissioned ilks).
 - `nib` : per user relative fee for a specific ilk (for permissioned ilks).
-- `Peace`: minimal collateralization ratio (for vaults in unpermissioned ilks).
-- `peace`: per user minimal collateralization ratio (for vaults in permissioned ilks).
+- `Peace`: active collateralization ratio (for vaults in unpermissioned ilks).  When vault collateralization ratio is below this value no futher debt can be generated.  The vault will not be liquidated until it dips below the collateralization ratio.
+- `peace`: per user active collateralization ratio (for vaults in permissioned ilks).  When vault collateralization ratio is below this value no futher debt can be generated.  The vault will not be liquidated until it dips below the collateralization ratio.
 - `uline` : per user debt ceiling for a specific ilk (for permissioned ilks).
 - `rollable` : whether a vault can move debt to another vault without paying origination fees (for vaults in permissioned ilks). 
 
